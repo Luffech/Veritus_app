@@ -1,0 +1,166 @@
+/* frontend/src/index.css - SUBSTITUA TUDO POR ISTO */
+:root {
+    --dark-blue: #001C42;
+    --light-blue: #1E3A8A;
+    --white: #FFFFFF;
+    --gray-bg: #F3F4F6;
+    --card-bg: #FFFFFF;
+    --text-color: #000000;
+    --sidebar-width: 250px;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--gray-bg);
+    color: var(--text-color);
+    min-height: 100vh;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* === Ajuste para React: Wrapper da página de Login === */
+.page-login-wrapper {
+    display: block;
+    background-color: var(--gray-bg);
+    min-height: 100vh;
+}
+.page-login-wrapper .topbar {
+    background-color: var(--dark-blue);
+    color: var(--white);
+    padding: 10px 20px;
+}
+.page-login-wrapper .brand-logo {
+    filter: brightness(0) invert(1);
+    width: 32px;
+    height: 32px;
+}
+.page-login-wrapper .brand {
+    font-weight: 400;
+}
+
+/* === Layout Geral e Sidebar === */
+.app-layout {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--dark-blue);
+    color: var(--white);
+    padding: 20px 0;
+    flex-shrink: 0;
+}
+
+.brand-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 20px 20px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+}
+.brand-logo {
+    width: 32px; height: 32px;
+}
+.brand {
+    font-size: 1.2rem; font-weight: 600;
+}
+.sidebar nav a {
+    display: block;
+    padding: 10px 20px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+.sidebar nav a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.sidebar nav a.active {
+    background-color: var(--light-blue);
+    color: var(--white);
+    font-weight: bold;
+}
+
+/* Conteúdo Principal */
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+.top-header {
+    background-color: var(--white);
+    padding: 15px 30px;
+    border-bottom: 1px solid #e5e7eb;
+}
+.top-actions {
+    display: flex; justify-content: flex-end; align-items: center; gap: 15px;
+}
+
+/* Utilitários e Componentes */
+.container { padding: 30px; }
+.container.narrow { max-width: 600px; margin: 50px auto; }
+.container.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+
+.card {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.info-block {
+    background-color: #f0f9ff;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    border: 1px solid #bae6fd;
+}
+.info-block code {
+    background-color: #e0f2fe;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: .85rem;
+}
+
+.form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;
+}
+.form-grid label {
+    display: block; font-size: .9rem; font-weight: 500; margin-bottom: 5px;
+}
+.form-grid input, .form-grid select, .form-grid textarea {
+    width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; box-sizing: border-box;
+}
+.btn {
+    padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;
+    transition: background-color 0.2s; font-size: .9rem;
+}
+.btn.primary { background-color: var(--light-blue); color: var(--white); }
+.btn.primary:hover { background-color: #1e3a8a; }
+.btn.danger { background-color: #1E3A8A; color: var(--white); }
+
+.section-title {
+    font-size: 1.4rem; font-weight: 600; margin-top: 0; margin-bottom: 20px;
+    padding-bottom: 10px; border-bottom: 1px solid #f3f4f6;
+}
+.muted { color: #6b7280; }
+
+/* Tabelas */
+.table-wrap { overflow-x: auto; margin-bottom: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f3f4f6; }
+th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+tr.selectable:hover { background-color: #eef3ff; cursor: pointer; }
+tr.selected { background-color: #dbeafe; border-left: 3px solid #3b82f6; }
+
+.badge { padding: 4px 8px; border-radius: 10px; font-size: .75rem; font-weight: bold; }
+.badge.on { background-color: #d1fae5; color: #059669; }
+.badge.off { background-color: #fee2e2; color: #ef4444; }
