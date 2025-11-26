@@ -6,8 +6,8 @@ from app.core.database import get_db
 from app.services.teste_service import TesteService
 
 # Importando os Schemas corretos (agora separados)
-from app.schemas.caso_teste import CasoTesteCreate, CasoTesteResponse
-from app.schemas.ciclo_teste import CicloTesteCreate, CicloTesteResponse
+from app.schemas.caso_teste import CasoTesteCreate, CasoTesteUpdate, CasoTesteResponse
+from app.schemas.ciclo_teste import CicloTesteCreate, CicloTesteUpdate, CicloTesteResponse
 from app.schemas.execucao_teste import ExecucaoTesteResponse, ExecucaoPassoUpdate, ExecucaoPassoResponse
 
 from app.api.deps import get_current_user 
@@ -26,6 +26,24 @@ async def criar_caso(
     """Cria um novo caso de teste com seus passos."""
     service = TesteService(db)
     return await service.criar_caso_teste(projeto_id, caso)
+
+@router.put("/casos/{caso_id}", response_model=CasoTesteResponse)
+async def atualizar_caso_teste(
+    caso_id: int, 
+    dados: CasoTesteUpdate, 
+    db: AsyncSession = Depends(get_db)
+):
+    service = TesteService(db)
+    return await service.atualizar_caso(caso_id, dados)
+
+@router.delete("/casos/{caso_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def apagar_caso_teste(
+    caso_id: int, 
+    db: AsyncSession = Depends(get_db)
+):
+    service = TesteService(db)
+    if not await service.remover_caso(caso_id):
+        raise HTTPException(status_code=404, detail="Caso não encontrado")
 
 @router.get("/projetos/{projeto_id}/casos", response_model=List[CasoTesteResponse], summary="Listar Casos de Teste")
 async def listar_casos(
@@ -50,6 +68,24 @@ async def criar_ciclo(
     """Cria um novo ciclo de testes (Sprint/Release)."""
     service = TesteService(db)
     return await service.criar_ciclo(projeto_id, ciclo)
+
+@router.put("/ciclos/{ciclo_id}", response_model=CicloTesteResponse)
+async def atualizar_ciclo_teste(
+    ciclo_id: int, 
+    dados: CicloTesteUpdate, 
+    db: AsyncSession = Depends(get_db)
+):
+    service = TesteService(db)
+    return await service.atualizar_ciclo(ciclo_id, dados)
+
+@router.delete("/ciclos/{ciclo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def apagar_ciclo_teste(
+    ciclo_id: int, 
+    db: AsyncSession = Depends(get_db)
+):
+    service = TesteService(db)
+    if not await service.remover_ciclo(ciclo_id):
+        raise HTTPException(status_code=404, detail="Ciclo não encontrado")
 
 @router.get("/projetos/{projeto_id}/ciclos", response_model=List[CicloTesteResponse], summary="Listar Ciclos")
 async def listar_ciclos(

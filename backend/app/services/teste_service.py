@@ -2,8 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.repositories.teste_repository import TesteRepository
-from app.schemas.caso_teste import CasoTesteCreate
-from app.schemas.ciclo_teste import CicloTesteCreate
+from app.schemas.caso_teste import CasoTesteCreate, CasoTesteUpdate
+from app.schemas.ciclo_teste import CicloTesteCreate, CicloTesteUpdate
 from app.schemas.execucao_teste import ExecucaoPassoUpdate
 from app.models.testing import StatusExecucaoEnum, StatusPassoEnum
 
@@ -19,9 +19,23 @@ class TesteService:
         # if not projeto: raise HTTPException(...)
         
         return await self.repo.create_caso_teste(projeto_id, dados)
+    
+    async def atualizar_caso(self, caso_id: int, dados: CasoTesteUpdate):
+        update_data = dados.model_dump(exclude_unset=True)
+        return await self.repo.update_caso_teste(caso_id, update_data)
+
+    async def remover_caso(self, caso_id: int):
+        return await self.repo.delete_caso_teste(caso_id)
 
     async def criar_ciclo(self, projeto_id: int, dados: CicloTesteCreate):
         return await self.repo.create_ciclo(projeto_id, dados)
+    
+    async def atualizar_ciclo(self, ciclo_id: int, dados: CicloTesteUpdate):
+        update_data = dados.model_dump(exclude_unset=True)
+        return await self.repo.update_ciclo(ciclo_id, update_data)
+
+    async def remover_ciclo(self, ciclo_id: int):
+        return await self.repo.delete_ciclo(ciclo_id)
 
     # --- EXECUÇÃO DE TESTES ---
 

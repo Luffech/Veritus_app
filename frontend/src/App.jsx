@@ -1,8 +1,14 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { AdminUsers } from './pages/AdminUsers';
 import './index.css';
+import { AdminSistemas } from './pages/AdminSistemas';
+import { AdminModulos } from './pages/AdminModulos';
+import { AdminProjetos } from './pages/AdminProjetos';
+import { QACasosTeste } from './pages/QACasosTeste';
+import { QACiclos } from './pages/QACiclos';
+import { QARunner } from './pages/QARunner';
 
 // Componente da Barra Superior (Header)
 function TopHeader() {
@@ -12,26 +18,65 @@ function TopHeader() {
   return (
     <header className="top-header">
       <nav className="top-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px', width: '100%' }}>
-        
-        {/* Botão de Voltar (Seta) - Alinhado à esquerda da barra superior para ser intuitivo, 
-            ou se quiser MESMO na direita, mova-o para junto do botão Sair */}
         <button 
           onClick={() => navigate(-1)} 
           className="btn" 
           style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px' }}
-          title="Voltar para a página anterior"
         >
           <span>←</span> Voltar
         </button>
 
-        {/* Informações do Usuário e Logout (Direita) */}
         <span style={{ fontWeight: 500 }}>{user?.username}</span>
         <span className="badge" style={{backgroundColor: '#eef2ff', color: '#3730a3'}}>
-            {user?.role === 'admin' ? 'Administrador' : 'Testador'}
+            {user?.role === 'admin' ? 'Administrador' : 'Testador (QA)'}
         </span>
         <button onClick={logout} className="btn danger">Sair</button>
       </nav>
     </header>
+  );
+}
+
+// Componente Sidebar Otimizado
+function Sidebar({ role }) {
+  const location = useLocation();
+  // Helper para verificar se a rota está ativa
+  const isActive = (path) => location.pathname === path ? 'active' : '';
+
+  return (
+    <aside className="sidebar">
+       <div className="brand-wrap">
+         {/* Certifique-se que a imagem está em /public/logoge.png */}
+         <img src="/logoge.png" alt="GE" className="brand-logo" />
+         <div className="brand">Test Manager</div>
+       </div>
+       <nav>
+         {role === 'admin' && (
+           <>
+             <div className="nav-section">GOVERNANÇA</div>
+             <Link to="/admin" className={isActive('/admin')}>Hub 360°</Link>
+             <Link to="/admin/users" className={isActive('/admin/users')}>Gestão de Acessos</Link>
+             
+             <div className="nav-section">CADASTROS</div>
+             {/* --- SEPARAÇÃO AQUI --- */}
+             <Link to="/admin/sistemas" className={isActive('/admin/sistemas')}>Sistemas</Link>
+             <Link to="/admin/modulos" className={isActive('/admin/modulos')}>Módulos</Link>
+             <Link to="/admin/projetos" className={isActive('/admin/projetos')}>Projetos</Link>
+           </>
+         )}
+         
+         {(role === 'user' || role === 'admin') && (
+           <>
+              <div className="nav-section">QA - PLANEJAMENTO</div>
+              <Link to="/qa/casos" className={isActive('/qa/casos')}>Biblioteca de Testes</Link>
+              <Link to="/qa/ciclos" className={isActive('/qa/ciclos')}>Ciclos (Sprints)</Link>
+
+              <div className="nav-section">QA - EXECUÇÃO</div>
+              <Link to="/qa/runner" className={isActive('/qa/runner')}>Runner (Minhas Tarefas)</Link>
+              <Link to="/qa/defeitos" className={isActive('/qa/defeitos')}>Gestão de Defeitos</Link>
+           </>
+         )}
+       </nav>
+    </aside>
   );
 }
 
@@ -44,33 +89,9 @@ function ProtectedLayout({ roles }) {
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
-      <aside className="sidebar">
-         <div className="brand-wrap">
-           {/* Certifique-se que a imagem está em /public/logoge.png */}
-           <img src="/logoge.png" alt="GE" className="brand-logo" />
-           <div className="brand">Test Manager</div>
-         </div>
-         <nav>
-           {/* Links condicionais baseados na role */}
-           {user.role === 'admin' && (
-             <>
-               <Link to="/admin">Hub</Link>
-               <Link to="/admin/users">Testadores</Link>
-               <Link to="/admin/tests">Testes</Link>
-             </>
-           )}
-           {user.role !== 'admin' && (
-              <Link to="/tester">Dashboard</Link>
-           )}
-         </nav>
-      </aside>
-
-      {/* Conteúdo Principal com o novo Header */}
+      <Sidebar role={user.role} />
       <div className="main-content">
-         <TopHeader /> {/* <--- Barra superior adicionada aqui */}
-         
-         {/* Área onde as páginas (AdminUsers, etc) são renderizadas */}
+         <TopHeader /> 
          <div style={{ padding: '0' }}> 
             <Outlet />
          </div>
@@ -86,19 +107,23 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           
-          {/* Rotas de Admin */}
+          {/* Rotas de Admin (Governança) */}
           <Route element={<ProtectedLayout roles={['admin']} />}>
-            <Route path="/admin" element={<div className="container"><h2 className="section-title">Hub Admin</h2><p>Bem-vindo ao painel de controle.</p></div>} />
+            <Route path="/admin" element={<div className="container"><h2 className="section-title">Hub 360° - Dashboard</h2><p>Use o menu lateral para cadastrar a estrutura.</p></div>} />
             <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/tests" element={<div className="container"><h2>Gestão de Testes (Em breve)</h2></div>} />
+            <Route path="/admin/sistemas" element={<AdminSistemas />} />
+            <Route path="/admin/modulos" element={<AdminModulos />} />
+            <Route path="/admin/projetos" element={<AdminProjetos />} />
           </Route>
 
-          {/* Rotas de Tester */}
-          <Route element={<ProtectedLayout roles={['tester', 'admin']} />}>
-            <Route path="/tester" element={<div className="container"><h2>Área do Testador (Em breve)</h2></div>} />
+          {/* Rotas de QA (Planejamento e Execução) */}
+          <Route element={<ProtectedLayout roles={['user', 'admin']} />}>
+            <Route path="/qa/casos" element={<QACasosTeste />} />
+            <Route path="/qa/ciclos" element={<QACiclos />} />
+            <Route path="/qa/runner" element={<QARunner />} />
+            <Route path="/qa/defeitos" element={<div className="container"><h2>Gestão de Defeitos (Dia 4)</h2></div>} />
           </Route>
 
-           {/* Rota para lidar com URLs desconhecidas */}
            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

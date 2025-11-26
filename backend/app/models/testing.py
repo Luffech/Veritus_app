@@ -4,8 +4,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 
-# --- ENUMS (Devem bater com o init.sql) ---
-
 class PrioridadeEnum(str, enum.Enum):
     alta = "alta"
     media = "media"
@@ -32,7 +30,19 @@ class StatusCicloEnum(str, enum.Enum):
     cancelado = "cancelado"
     erro = "erro"
 
-# --- MODELS DE GESTÃO (CICLOS) ---
+class StatusDefeitoEnum(str, enum.Enum):
+    aberto = "aberto"
+    em_teste = "em_teste"
+    corrigido = "corrigido"
+    fechado = "fechado"
+
+class SeveridadeDefeitoEnum(str, enum.Enum):
+    critico = "critico"
+    alto = "alto"
+    medio = "medio"
+    bajo = "baixo"
+
+#Ciclos de Teste
 
 class CicloTeste(Base):
     __tablename__ = "ciclos_teste"
@@ -40,7 +50,7 @@ class CicloTeste(Base):
     id = Column(Integer, primary_key=True, index=True)
     projeto_id = Column(Integer, ForeignKey("projetos.id"), nullable=False)
     nome = Column(String)
-    numero = Column(Integer) # Preenchido via trigger ou lógica de app
+    numero = Column(Integer) 
     descricao = Column(Text)
     data_inicio = Column(DateTime(timezone=True))
     data_fim = Column(DateTime(timezone=True))
@@ -48,12 +58,11 @@ class CicloTeste(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
     projeto = relationship("Projeto", back_populates="ciclos")
-    execucoes = relationship("ExecucaoTeste", back_populates="ciclo")
+    execucoes = relationship("ExecucaoTeste", back_populates="ciclo", cascade="all, delete-orphan")
     metricas = relationship("Metrica", back_populates="ciclo")
 
-# --- MODELS DE TESTE (TEMPLATES) ---
+#Casos de Teste
 
 class CasoTeste(Base):
     __tablename__ = "casos_teste"
@@ -62,12 +71,12 @@ class CasoTeste(Base):
     projeto_id = Column(Integer, ForeignKey("projetos.id"), nullable=False)
     nome = Column(String, nullable=False)
     descricao = Column(Text)
-    pre_condicoes = Column(Text)    
+    pre_condicoes = Column(Text)
+    criterios_aceitacao = Column(Text)
     prioridade = Column(Enum(PrioridadeEnum, name='prioridade_enum', create_type=False), default=PrioridadeEnum.media)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
     projeto = relationship("Projeto", back_populates="casos_teste")
     passos = relationship("PassoCasoTeste", back_populates="caso_teste", cascade="all, delete-orphan")
     execucoes = relationship("ExecucaoTeste", back_populates="caso_teste")
@@ -83,11 +92,10 @@ class PassoCasoTeste(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
     caso_teste = relationship("CasoTeste", back_populates="passos")
     execucoes_deste_passo = relationship("ExecucaoPasso", back_populates="passo_template")
 
-# --- MODELS DE EXECUÇÃO (RESULTADOS) ---
+#Execuções de Teste
 
 class ExecucaoTeste(Base):
     __tablename__ = "execucoes_teste"
@@ -100,11 +108,11 @@ class ExecucaoTeste(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
     ciclo = relationship("CicloTeste", back_populates="execucoes")
     caso_teste = relationship("CasoTeste", back_populates="execucoes")
     responsavel = relationship("Usuario", back_populates="execucoes_atribuidas")
     passos_executados = relationship("ExecucaoPasso", back_populates="execucao_pai", cascade="all, delete-orphan")
+    defeitos = relationship("Defeito", back_populates="execucao", cascade="all, delete-orphan")
 
 class ExecucaoPasso(Base):
     __tablename__ = "execucoes_passos"
@@ -117,6 +125,20 @@ class ExecucaoPasso(Base):
     evidencias = Column(Text)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
     execucao_pai = relationship("ExecucaoTeste", back_populates="passos_executados")
     passo_template = relationship("PassoCasoTeste", back_populates="execucoes_deste_passo")
+
+class Defeito(Base):
+    __tablename__ = "defeitos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    execucao_teste_id = Column(Integer, ForeignKey("execucoes_teste.id"), nullable=False)
+    titulo = Column(String(255), nullable=False)
+    descricao = Column(Text, nullable=False)
+    evidencias = Column(Text)
+    severidade = Column(Enum(SeveridadeDefeitoEnum, name='severidade_defeito_enum', create_type=False), nullable=False)
+    status = Column(Enum(StatusDefeitoEnum, name='status_defeito_enum', create_type=False), default=StatusDefeitoEnum.aberto)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    execucao = relationship("ExecucaoTeste", back_populates="defeitos")

@@ -164,3 +164,12 @@ tr.selected { background-color: #dbeafe; border-left: 3px solid #3b82f6; }
 .badge { padding: 4px 8px; border-radius: 10px; font-size: .75rem; font-weight: bold; }
 .badge.on { background-color: #d1fae5; color: #059669; }
 .badge.off { background-color: #fee2e2; color: #ef4444; }
+
+.sidebar .nav-section {
+    padding: 15px 20px 5px 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 1px;
+    margin-top: 10px;
+}

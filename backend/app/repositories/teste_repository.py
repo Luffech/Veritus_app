@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from typing import Sequence, Optional, List
-from sqlalchemy import func
+from sqlalchemy import func, delete, update as sqlalchemy_update
 
 from app.models.testing import (
     CicloTeste, CasoTeste, PassoCasoTeste, 
@@ -19,19 +19,17 @@ class TesteRepository:
 
     # --- CASOS DE TESTE ---
     async def create_caso_teste(self, projeto_id: int, caso_data: CasoTesteCreate) -> CasoTeste:
-        # 1. Criar o Caso
         db_caso = CasoTeste(
             projeto_id=projeto_id,
             nome=caso_data.nome,
             descricao=caso_data.descricao,
             pre_condicoes=caso_data.pre_condicoes,
-            #criterios_aceitacao=caso_data.criterios_aceitacao,
+            criterios_aceitacao=caso_data.criterios_aceitacao, 
             prioridade=caso_data.prioridade
         )
         self.db.add(db_caso)
         await self.db.flush() 
 
-        # 2. Criar os Passos
         if caso_data.passos:
             passos_objetos = [
                 PassoCasoTeste(
@@ -44,12 +42,26 @@ class TesteRepository:
             self.db.add_all(passos_objetos)
         
         await self.db.commit()
-        
-        # 3. TRUQUE IMPORTANTE: 
-        # Em vez de apenas refresh, vamos buscar o objeto completo com os relacionamentos carregados.
-        # Isso evita o erro de MissingGreenlet porque garantimos que 'passos' está na memória.
         return await self.get_caso_teste_by_id(db_caso.id)
 
+    async def update_caso_teste(self, caso_id: int, dados: dict) -> Optional[CasoTeste]:
+        query = (
+            sqlalchemy_update(CasoTeste)
+            .where(CasoTeste.id == caso_id)
+            .values(**dados)
+            .returning(CasoTeste)
+        )
+        result = await self.db.execute(query)
+        await self.db.commit()
+        
+        return await self.get_caso_teste_by_id(caso_id)
+
+    async def delete_caso_teste(self, caso_id: int) -> bool:
+        query = delete(CasoTeste).where(CasoTeste.id == caso_id)
+        result = await self.db.execute(query)
+        await self.db.commit()
+        return result.rowcount > 0
+    
     async def get_caso_teste_by_id(self, caso_id: int) -> Optional[CasoTeste]:
         query = (
             select(CasoTeste)
@@ -89,6 +101,23 @@ class TesteRepository:
         await self.db.commit()
         await self.db.refresh(db_ciclo)
         return db_ciclo
+    
+    async def update_ciclo(self, ciclo_id: int, dados: dict) -> Optional[CicloTeste]:
+        query = (
+            sqlalchemy_update(CicloTeste)
+            .where(CicloTeste.id == ciclo_id)
+            .values(**dados)
+            .returning(CicloTeste)
+        )
+        result = await self.db.execute(query)
+        await self.db.commit()
+        return result.scalars().first()
+
+    async def delete_ciclo(self, ciclo_id: int) -> bool:
+        query = delete(CicloTeste).where(CicloTeste.id == ciclo_id)
+        result = await self.db.execute(query)
+        await self.db.commit()
+        return result.rowcount > 0
 
     async def list_ciclos_by_projeto(
         self, 
