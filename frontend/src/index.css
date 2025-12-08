@@ -28,22 +28,9 @@ body {
 .page-login-wrapper {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: radial-gradient(circle, #0e529b, #0D1B2A);
+    background: linear-gradient(to right, #0e529b, #071019);
     min-height: 100vh;
     position: relative;
-}
-
-.page-login-wrapper::after {
-  content: ""; 
-  position: absolute; 
-  
-  top: 0;
-  bottom: 0;
-  
-  left: calc(50% - 1px);
-  
-  width: 2px;
-  background-color: #ffffff;
 }
 
 .page-login-wrapper .topbar {
@@ -90,7 +77,7 @@ body {
 }
 .brand-logo-vt {
     width: 40px; height: auto;
-    padding: 0 5px 0px 5px;  
+    padding: 0 5px 0px 5px;
 }
 .brand {
     font-size: 1.2rem; font-weight: 600;
@@ -146,7 +133,7 @@ body {
 .container.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 
 .image-half {
-    background: linear-gradient(45deg, #071019, #112047);
+    background: transparent;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -176,22 +163,14 @@ body {
 }
 
 .login-card {
-    background-color: #0D1A23;
+    background: linear-gradient(45deg, #0D1A23, #08203A);
     padding: 20px;
     margin-top: 50px;
+    margin-left: 50px;
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 1);
     height: 300px;
     width: 500px;
-}
-
-.logo-card {
-    background-color: #0D1A23;
-    padding: 20px;
-    margin-top: 50px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    height: 300px;
 }
 
 .info-block {
@@ -225,7 +204,7 @@ body {
     display: block; font-size: .9rem; font-weight: 500; margin-bottom: 5px; color: #ffffff;
 }
 .login-form-grid input, .login-form-grid select, .login-form-grid textarea {
-    display: block; width: 70%; padding: 10px; border: 1px solid #0F2B4B; border-radius: 4px; box-sizing: border-box; background-color: #149DCD;
+    display: block; width: 70%; padding: 10px; border: 1px solid #0F2B4B; border-radius: 4px; box-sizing: border-box; background-color: #DDDDDD;
     color: #0D1A23; margin-bottom: 15px; margin-left: auto; margin-right: auto;
 }
 
