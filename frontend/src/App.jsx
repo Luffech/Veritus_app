@@ -2,9 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, Link, useL
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { AdminUsers } from './pages/AdminUsers';
-import './index.css';
-
-// Imports das páginas
 import { AdminSistemas } from './pages/AdminSistemas';
 import { AdminModulos } from './pages/AdminModulos';
 import { AdminProjetos } from './pages/AdminProjetos';
@@ -13,6 +10,7 @@ import { AdminCiclos } from './pages/AdminCiclos';
 import { QADefeitos } from './pages/QADefeitos';
 import { QARunner } from './pages/QARunner';
 import { Dashboard } from './pages/Dashboard'; 
+import './index.css';
 
 function TopHeader() {
   const { user, logout } = useAuth();
@@ -22,9 +20,6 @@ function TopHeader() {
     <header className="top-header">
       <nav className="top-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px', width: '100%' }}>
         <div style={{ marginRight: 'auto' }}></div> 
-
-        <span style={{ fontWeight: 500 }}>{user?.username}</span>
-        
         <span className="badge" style={{backgroundColor: '#eef2ff', color: '#3730a3'}}>
             {user?.nome}
         </span>
@@ -48,7 +43,6 @@ function Sidebar({ role }) {
          <div className="brand">Veritus</div>
        </div>
        <nav>
-         {/* === VISÃO DO ADMIN === */}
          {role === 'admin' && (
            <>
              <div className="nav-section">ADMINISTRAÇÃO</div>
@@ -69,7 +63,6 @@ function Sidebar({ role }) {
            </>
          )}
          
-         {/* === VISÃO DO TESTADOR === */}
          {role === 'user' && (
            <>
               <div className="nav-section">MINHA ÁREA</div>
@@ -109,12 +102,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
-          
-          {/* === ROTAS ADMIN === */}
           <Route element={<ProtectedLayout roles={['admin']} />}>
-            {/* 2. Substituir o placeholder pela Dashboard real */}
             <Route path="/admin" element={<Dashboard />} />
-            
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/sistemas" element={<AdminSistemas />} />
             <Route path="/admin/modulos" element={<AdminModulos />} />
@@ -122,17 +111,12 @@ function App() {
             <Route path="/admin/casos" element={<AdminCasosTeste />} />
             <Route path="/admin/ciclos" element={<AdminCiclos />} />
           </Route>
-
-          {/* === ROTAS TESTADOR === */}
           <Route element={<ProtectedLayout roles={['user']} />}>
             <Route path="/qa/runner" element={<QARunner />} />
           </Route>
-
-          {/* === ROTAS COMUNS === */}
           <Route element={<ProtectedLayout roles={['user', 'admin']} />}>
             <Route path="/qa/defeitos" element={<QADefeitos />} />
           </Route>
-
            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

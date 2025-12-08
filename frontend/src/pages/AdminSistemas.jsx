@@ -7,11 +7,7 @@ export function AdminSistemas() {
   const [form, setForm] = useState({ nome: '', descricao: '' });
   const [editingId, setEditingId] = useState(null);
 
-  // --- LIMITES DE CARACTERES ---
-  const LIMITS = {
-      nome: 50,
-      descricao: 100
-  };
+  const LIMITS = { nome: 50, descricao: 100 };
 
   useEffect(() => { loadSistemas(); }, []);
 
@@ -54,14 +50,26 @@ export function AdminSistemas() {
       } catch(e) { alert("Erro ao atualizar status."); }
   };
 
+  const handleDelete = async (id, nome) => {
+      if (!confirm(`Tem a certeza que deseja excluir o sistema "${nome}"? \n\nCUIDADO: Isto só será possível se o sistema não tiver módulos associados.`)) {
+          return;
+      }
+      try {
+          await api.delete(`/sistemas/${id}`);
+          alert("Sistema excluído com sucesso!");
+          loadSistemas();
+          if (editingId === id) handleCancel();
+      } catch (error) {
+          alert(error.message || "Erro ao excluir sistema.");
+      }
+  };
+
   return (
     <main className="container grid">
       <section className="card">
         <h2 className="section-title">{editingId ? 'Editar Sistema' : 'Novo Sistema'}</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            
-            {/* CAMPO NOME COM LIMITE */}
             <div>
                 <div style={{display: 'flex', justifyContent: 'space-between'}}>
                     <label>Nome do Sistema</label>
@@ -71,14 +79,12 @@ export function AdminSistemas() {
                 </div>
                 <input 
                     required 
-                    maxLength={LIMITS.nome} // Limita a digitação
+                    maxLength={LIMITS.nome} 
                     value={form.nome} 
                     onChange={e => setForm({...form, nome: e.target.value})} 
                     placeholder="Ex: ERP Financeiro" 
                 />
             </div>
-
-            {/* CAMPO DESCRIÇÃO COM LIMITE */}
             <div>
                 <div style={{display: 'flex', justifyContent: 'space-between'}}>
                     <label>Descrição</label>
@@ -87,13 +93,12 @@ export function AdminSistemas() {
                     </span>
                 </div>
                 <input 
-                    maxLength={LIMITS.descricao} // Limita a digitação
+                    maxLength={LIMITS.descricao} 
                     value={form.descricao} 
                     onChange={e => setForm({...form, descricao: e.target.value})} 
                     placeholder="Breve descrição..." 
                 />
             </div>
-
           </div>
           <div className="actions" style={{marginTop: '15px', display: 'flex', gap: '10px'}}>
             <button type="submit" className="btn primary">{editingId ? 'Atualizar' : 'Salvar'}</button>
@@ -101,7 +106,6 @@ export function AdminSistemas() {
           </div>
         </form>
       </section>
-
       <section className="card">
         <h2 className="section-title">Sistemas Registrados</h2>
         <div className="table-wrap">
@@ -117,17 +121,12 @@ export function AdminSistemas() {
                         >
                             <td title={s.nome}>
                                 <strong>
-                                    {s.nome.length > 30 
-                                        ? s.nome.substring(0, 30) + '...' 
-                                        : s.nome}
+                                    {s.nome.length > 30 ? s.nome.substring(0, 30) + '...' : s.nome}
                                 </strong>
                             </td>
-                            
-                            {/* Dica: Title mostra o texto completo se passar o mouse */}
                             <td title={s.descricao}>
                                 {s.descricao.length > 50 ? s.descricao.substring(0, 30) + '...' : s.descricao}
                             </td>
-                            
                             <td>
                                 <span 
                                     onClick={(e) => { e.stopPropagation(); toggleActive(s); }}
@@ -141,6 +140,14 @@ export function AdminSistemas() {
                                 >
                                     {s.ativo ? 'Ativo' : 'Inativo'}
                                 </span>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(s.id, s.nome); }}
+                                    className="btn danger"
+                                    style={{marginLeft: '10px', padding: '4px 8px', fontSize: '0.75rem'}}
+                                    title="Excluir Sistema"
+                                >
+                                    Excluir
+                                </button>
                             </td>
                         </tr>
                     ))}

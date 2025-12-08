@@ -8,6 +8,7 @@ class Usuario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String(255), nullable=False)
+    username = Column(String(50), unique=True, index=True, nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     senha_hash = Column(String(255), nullable=False)
     nivel_acesso_id = Column(Integer, ForeignKey("niveis_acesso.id"), nullable=False)
@@ -15,7 +16,7 @@ class Usuario(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
+    # Relationships
     nivel_acesso = relationship("NivelAcesso", back_populates="usuarios")
     projetos_gerenciados = relationship("Projeto", back_populates="responsavel")
     execucoes_atribuidas = relationship("ExecucaoTeste", back_populates="responsavel")

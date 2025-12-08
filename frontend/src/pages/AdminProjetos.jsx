@@ -93,31 +93,44 @@ export function AdminProjetos() {
       } catch(e) { alert("Erro ao mudar status."); }
   };
 
-  // --- BADGE DO MÓDULO (ESTILO IDÊNTICO AO USUÁRIO) ---
+  const handleDelete = async (id, nome) => {
+      const confirmacao = prompt(
+          `ATENÇÃO CRÍTICA!\n\nVocê está prestes a apagar o projeto "${nome}".\nIsso apagará TODOS os ciclos, casos de teste e execuções vinculados.\n\nPara confirmar, digite "DELETAR" abaixo:`
+      );
+
+      if (confirmacao !== "DELETAR") return;
+
+      try {
+          await api.delete(`/projetos/${id}`);
+          alert("Projeto e dados vinculados excluídos.");
+          loadAll();
+          if (editingId === id) handleCancel();
+      } catch (error) {
+          alert(error.message);
+      }
+  };
+
   const renderModuloBadge = (id) => {
       const mod = modulos.find(m => m.id === id);
       if (!mod) return <span style={{color: '#cbd5e1'}}>-</span>;
 
-      // Inativo: Vermelho com borda sutil
       if (mod.ativo === false) {
           return (
               <span className="badge" style={{
                   backgroundColor: '#fee2e2', 
                   color: '#b91c1c',
-                  border: '1px solid rgba(185, 28, 28, 0.2)', // Borda sutil vermelha
+                  border: '1px solid rgba(185, 28, 28, 0.2)',
                   fontSize: '0.75rem'
               }}>
                   {mod.nome} (Inativo)
               </span>
           );
       }
-      
-      // Ativo: Azul com borda sutil
       return (
           <span className="badge" style={{
               backgroundColor: '#eef2ff', 
               color: '#3730a3',
-              border: '1px solid rgba(55, 48, 163, 0.2)', // Borda sutil azul
+              border: '1px solid rgba(55, 48, 163, 0.2)',
               fontSize: '0.75rem'
           }}>
               {mod.nome}
@@ -134,7 +147,6 @@ export function AdminProjetos() {
       }
   };
 
-  // --- BADGE DO USUÁRIO ---
   const renderResponsavel = (id) => {
       if (!id) return <span style={{color: '#cbd5e1'}}>-</span>;
       const user = usuarios.find(u => u.id === id);
@@ -145,7 +157,7 @@ export function AdminProjetos() {
             <span className="badge" style={{
                 backgroundColor: '#fee2e2', 
                 color: '#b91c1c', 
-                border: '1px solid rgba(185, 28, 28, 0.2)', // Borda sutil vermelha
+                border: '1px solid rgba(185, 28, 28, 0.2)',
                 fontSize: '0.75rem'
             }}>
                 {user.nome} (Inativo)
@@ -156,15 +168,13 @@ export function AdminProjetos() {
         <span className="badge" style={{
             backgroundColor: '#eef2ff', 
             color: '#3730a3', 
-            border: '1px solid rgba(55, 48, 163, 0.2)', // Borda sutil azul
+            border: '1px solid rgba(55, 48, 163, 0.2)',
             fontSize: '0.75rem'
         }}>
             {user.nome}
         </span>
       );
   };
-
-  const usuariosAtivos = usuarios.filter(u => u.ativo !== false);
 
   return (
     <main className="container grid">
@@ -212,7 +222,7 @@ export function AdminProjetos() {
                 <label>Responsável</label>
                 <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})}>
                     <option value="">Sem responsável</option>
-                    {usuariosAtivos.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                    {usuarios.map(u => (u.ativo !== false ? <option key={u.id} value={u.id}>{u.nome}</option> : null))}
                 </select>
             </div>
             <div style={{gridColumn: '1/-1'}}>
@@ -241,6 +251,7 @@ export function AdminProjetos() {
                         <th>Módulo</th>
                         <th>Status</th>
                         <th>Responsável</th>
+                        <th style={{textAlign: 'right'}}>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -260,10 +271,7 @@ export function AdminProjetos() {
                                 }}
                             >
                                 <td><strong>{p.nome}</strong></td>
-                                
-                                {/* AQUI ESTÁ O BADGE DE MÓDULO */}
                                 <td>{renderModuloBadge(p.modulo_id)}</td>
-                                
                                 <td>
                                     <span 
                                         onClick={(e) => { 
@@ -285,8 +293,16 @@ export function AdminProjetos() {
                                         {p.status.toUpperCase()}
                                     </span>
                                 </td>
-                                
                                 <td>{renderResponsavel(p.responsavel_id)}</td>
+                                <td style={{textAlign: 'right'}}>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.nome); }}
+                                        className="btn danger"
+                                        style={{padding: '4px 8px', fontSize: '0.75rem'}}
+                                    >
+                                        Excluir
+                                    </button>
+                                </td>
                             </tr>
                         );
                     })}

@@ -54,6 +54,19 @@ export function AdminModulos() {
       } catch(e) { alert("Erro ao alterar status."); }
   };
 
+  const handleDelete = async (id, nome) => {
+    if (!confirm(`Excluir o módulo "${nome}"? \n\nVerifique se não há projetos vinculados antes de continuar.`)) return;
+    try {
+        await api.delete(`/modulos/${id}`);
+        alert("Módulo excluído!");
+        const updatedMods = await api.get("/modulos/");
+        setModulos(updatedMods);
+        if (editingId === id) handleCancel();
+    } catch (error) {
+        alert(error.message || "Não foi possível excluir.");
+    }
+  };
+
   const getSistemaName = (id) => sistemas.find(s => s.id === id)?.nome || id;
   const sistemasAtivos = sistemas.filter(s => s.ativo);
 
@@ -85,7 +98,6 @@ export function AdminModulos() {
           </div>
         </form>
       </section>
-
       <section className="card">
         <h2 className="section-title">Módulos Cadastrados</h2>
         <div className="table-wrap">
@@ -101,7 +113,6 @@ export function AdminModulos() {
                         >
                             <td><span className="badge" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>{getSistemaName(m.sistema_id)}</span></td>
                             <td><strong>{m.nome}</strong></td>
-                            
                             <td>
                                 <span 
                                     onClick={(e) => { e.stopPropagation(); toggleActive(m); }}
@@ -115,6 +126,13 @@ export function AdminModulos() {
                                 >
                                     {m.ativo ? 'Ativo' : 'Inativo'}
                                 </span>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(m.id, m.nome); }}
+                                    className="btn danger"
+                                    style={{marginLeft: '10px', padding: '4px 8px', fontSize: '0.75rem'}}
+                                >
+                                    Excluir
+                                </button>
                             </td>
                         </tr>
                     ))}

@@ -10,7 +10,7 @@ export function AdminCasosTeste() {
   
   const [selectedProjeto, setSelectedProjeto] = useState('');
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState('list'); 
+  const [view, setView] = useState('list'); // 'list' ou 'form'
   const [editingId, setEditingId] = useState(null);
 
   // Estado do Formulário
@@ -19,7 +19,7 @@ export function AdminCasosTeste() {
     descricao: '',
     pre_condicoes: '',
     criterios_aceitacao: '',
-    prioridade: 'media',
+    prioridade: 'Alta', // Valor padrão conforme imagem
     responsavel_id: '',
     ciclo_id: '',
     passos: [{ ordem: 1, acao: '', resultado_esperado: '' }]
@@ -36,7 +36,7 @@ export function AdminCasosTeste() {
         setProjetos(projData || []);
         setUsuarios(userData || []);
         
-        // --- ALTERAÇÃO 1: Seleciona o primeiro ATIVO por padrão ---
+        // Seleciona o primeiro projeto ATIVO por padrão
         const ativos = (projData || []).filter(p => p.status === 'ativo');
         if (ativos.length > 0) {
           setSelectedProjeto(ativos[0].id);
@@ -75,7 +75,7 @@ export function AdminCasosTeste() {
   const handleReset = () => {
     setForm({
       nome: '', descricao: '', pre_condicoes: '', criterios_aceitacao: '',
-      prioridade: 'media', responsavel_id: '', ciclo_id: '',
+      prioridade: 'Alta', responsavel_id: '', ciclo_id: '',
       passos: [{ ordem: 1, acao: '', resultado_esperado: '' }]
     });
     setEditingId(null);
@@ -129,7 +129,6 @@ export function AdminCasosTeste() {
     e.preventDefault();
     if (!selectedProjeto) return alert("Erro: Nenhum projeto selecionado.");
     if (!form.nome.trim()) return alert("O Título do teste é obrigatório.");
-    if (form.passos.length === 0 || !form.passos[0].acao.trim()) return alert("Adicione pelo menos 1 passo válido.");
 
     try {
       const payload = {
@@ -145,12 +144,7 @@ export function AdminCasosTeste() {
         alert("Teste atualizado com sucesso!");
       } else {
         await api.post(`/testes/projetos/${selectedProjeto}/casos`, payload);
-        
-        if (payload.ciclo_id && payload.responsavel_id) {
-             alert(`Teste criado e enviado para execução!`);
-        } else {
-             alert("Teste salvo na biblioteca.");
-        }
+        alert(payload.ciclo_id ? "Teste criado e alocado!" : "Teste salvo na biblioteca.");
       }
 
       handleReset();
@@ -158,213 +152,256 @@ export function AdminCasosTeste() {
 
     } catch (error) {
       console.error("ERRO:", error);
-      alert("Falha ao salvar. Verifique se todos os campos estão corretos.");
+      alert("Falha ao salvar.");
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Tem certeza?")) return;
+    if (!confirm("Tem certeza que deseja excluir este caso de teste?")) return;
     try {
       await api.delete(`/testes/casos/${id}`);
       loadDadosProjeto(selectedProjeto);
     } catch (e) { alert("Erro ao excluir."); }
   };
 
-  // --- HELPERS VISUAIS ---
-  const renderResponsavel = (id) => {
-      if (!id) return <span style={{color: '#cbd5e1'}}>-</span>;
-      
-      const user = usuarios.find(u => u.id === id);
-      if (!user) return <span style={{color: '#94a3b8'}}>Desconhecido</span>;
-
-      if (!user.ativo) {
-          return (
-              <span className="badge" style={{backgroundColor: '#fee2e2', color: '#b91c1c'}} title="Inativo">
-                  {user.nome.split(' ')[0]} (Inativo)
-              </span>
-          );
-      }
-      
-      return (
-          <span className="badge" style={{backgroundColor: '#eef2ff', color: '#3730a3'}}>
-              {user.nome.split(' ')[0]}
-          </span>
-      );
+  // --- HELPER PARA ESTILO DOS INPUTS ---
+  const inputStyle = {
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '0.95rem',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box'
   };
 
-  const usuariosAtivos = usuarios.filter(u => u.ativo);
-
-  // --- RENDERIZAÇÃO ---
   return (
     <main className="container">
       
-      {/* --- CSS PARA O HOVER DA LINHA --- */}
-      <style>{`
-        tr.hover-row {
-            transition: background-color 0.2s;
-        }
-        tr.hover-row:hover {
-            background-color: #f1f5f9 !important;
-            cursor: pointer;
-        }
-      `}</style>
-
-      {/* HEADER DA PÁGINA */}
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', paddingBottom: '15px', borderBottom: '1px solid #e5e7eb'}}>
+      {/* HEADER GERAL */}
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
         <div>
            <h2 style={{margin: 0, color: '#1e293b'}}>Casos de Testes</h2>
-           <p className="muted" style={{margin: '5px 0 0 0'}}>Gerencie e planeje os cenários de teste do projeto.</p>
+           <p className="muted" style={{margin: '5px 0 0 0'}}>Biblioteca de testes do projeto.</p>
         </div>
         
-        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-           <div style={{textAlign: 'right'}}>
-             <label style={{display: 'block', fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', marginBottom: '2px'}}>PROJETO ATIVO</label>
-             <select 
-                value={selectedProjeto} 
-                onChange={e => setSelectedProjeto(e.target.value)}
-                style={{padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', minWidth: '200px', fontWeight: 500}}
-             >
-                {/* --- ALTERAÇÃO 2: FILTRO (MOSTRA APENAS ATIVOS) --- */}
-                {projetos
-                    .filter(p => p.status === 'ativo')
-                    .map(p => <option key={p.id} value={p.id}>{p.nome}</option>)
-                }
-             </select>
-           </div>
-           
-           {view === 'list' ? (
-             <button onClick={handleNew} className="btn primary" style={{height: '40px', padding: '0 20px'}}>
-               Novo Teste
-             </button>
-           ) : (
-             <button onClick={handleReset} className="btn" style={{height: '40px'}}>Voltar à Lista</button>
-           )}
-        </div>
+        {view === 'list' && (
+          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+             <div style={{textAlign: 'right'}}>
+               <label style={{display: 'block', fontSize: '0.7rem', fontWeight: 'bold', color: '#64748b', marginBottom: '2px', textTransform: 'uppercase'}}>PROJETO ATIVO</label>
+               <select 
+                  value={selectedProjeto} 
+                  onChange={e => setSelectedProjeto(e.target.value)}
+                  style={{padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', minWidth: '200px', fontWeight: 500}}
+               >
+                  {projetos.filter(p => p.status === 'ativo').map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+               </select>
+             </div>
+             <button onClick={handleNew} className="btn primary">Novo Cenário</button>
+          </div>
+        )}
       </div>
 
+      {/* --- FORMULÁRIO (IDENTICO AO PREENCHIDO) --- */}
       {view === 'form' && (
-        <div style={{maxWidth: '900px', margin: '0 auto'}}>
+        <div style={{maxWidth: '100%', margin: '0 auto'}}>
           <form onSubmit={handleSubmit}>
             
-            {/* CARD 1: INFORMAÇÕES BÁSICAS */}
-            <section className="card" style={{marginBottom: '20px'}}>
-              <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem'}}>
+            {/* CARD 1: DETALHES */}
+            <section className="card" style={{marginBottom: '20px', padding: '25px'}}>
+              <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>
                 Detalhes do Cenário
               </h3>
               
-              <div className="form-grid">
-                  <div style={{gridColumn: '1/-1'}}>
-                    <label>Título do Cenário <span style={{color:'red'}}>*</span></label>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                  {/* Linha 1: Título */}
+                  <div>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Título do Cenário <span style={{color:'#ef4444'}}>*</span></label>
                     <input 
                        required 
                        value={form.nome} 
                        onChange={e => setForm({...form, nome: e.target.value})} 
-                       placeholder="Ex: Validar login com credenciais inválidas"
-                       style={{fontSize: '1.1rem', fontWeight: 500}}
+                       placeholder="Ex: Validar pagamento de boleto bancário."
+                       style={{...inputStyle, fontSize: '1rem'}}
                     />
                   </div>
                   
-                  <div>
-                    <label>Prioridade</label>
-                    <select value={form.prioridade} onChange={e => setForm({...form, prioridade: e.target.value})}>
-                       <option value="alta"> Alta</option>
-                       <option value="media"> Média</option>
-                       <option value="baixa"> Baixa</option>
-                    </select>
+                  {/* Linha 2: Prioridade e Pré-condições (Lado a Lado) */}
+                  <div style={{display: 'flex', gap: '20px'}}>
+                      <div style={{flex: '0 0 200px'}}> {/* Prioridade mais estreita */}
+                        <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Prioridade</label>
+                        <select 
+                            value={form.prioridade} 
+                            onChange={e => setForm({...form, prioridade: e.target.value})}
+                            style={{...inputStyle, backgroundColor: '#f3f4f6'}}
+                        >
+                           <option value="Alta">Alta</option>
+                           <option value="Media">Média</option>
+                           <option value="Baixa">Baixa</option>
+                        </select>
+                      </div>
+
+                      <div style={{flex: 1}}> {/* Pré-condições ocupa o resto */}
+                        <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Pré-condições</label>
+                        <input 
+                          value={form.pre_condicoes} 
+                          onChange={e => setForm({...form, pre_condicoes: e.target.value})} 
+                          placeholder="Ex: Usuário logado com perfil Financeiro." 
+                          style={inputStyle}
+                        />
+                      </div>
                   </div>
 
+                  {/* Linha 3: Critérios */}
                   <div>
-                    <label>Pré-condições</label>
-                    <input value={form.pre_condicoes} onChange={e => setForm({...form, pre_condicoes: e.target.value})} placeholder="Ex: Usuário na Home" />
-                  </div>
-
-                  <div style={{gridColumn: '1/-1'}}>
-                    <label>Critérios de Aceitação / Objetivo</label>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Critérios de Aceitação / Objetivo</label>
                     <input
                        value={form.criterios_aceitacao} 
                        onChange={e => setForm({...form, criterios_aceitacao: e.target.value})}
                        placeholder="O que deve acontecer para o teste passar?"
+                       style={inputStyle}
                     />
                   </div>
               </div>
             </section>
 
             {/* CARD 2: PLANEJAMENTO */}
-            <section className="card" style={{marginBottom: '20px'}}>
-              <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem'}}>
+            <section className="card" style={{marginBottom: '20px', padding: '25px'}}>
+              <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>
                 Planejamento & Alocação
               </h3>
-              <div className="form-grid">
-                  <div>
-                    <label>Alocar ao Ciclo (Sprint)</label>
-                    <select value={form.ciclo_id} onChange={e => setForm({...form, ciclo_id: e.target.value})}>
+              <div style={{display: 'flex', gap: '20px'}}>
+                  <div style={{flex: 1}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Alocar ao Ciclo (Sprint)</label>
+                    <select 
+                        value={form.ciclo_id} 
+                        onChange={e => setForm({...form, ciclo_id: e.target.value})}
+                        style={{...inputStyle, backgroundColor: '#f3f4f6'}}
+                    >
                        <option value="">Apenas Salvar na Biblioteca</option>
                        {ciclos.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.status})</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label>Responsável (Testador)</label>
-                    <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})}>
+                  <div style={{flex: 1}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Responsável (Testador)</label>
+                    <select 
+                        value={form.responsavel_id} 
+                        onChange={e => setForm({...form, responsavel_id: e.target.value})}
+                        style={{...inputStyle, backgroundColor: '#f3f4f6'}}
+                    >
                        <option value="">Definir depois</option>
-                       {usuariosAtivos.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                       {usuarios.map(u => (u.ativo ? <option key={u.id} value={u.id}>{u.nome}</option> : null))}
                     </select>
                   </div>
               </div>
-              <p style={{fontSize: '0.85rem', color: '#64748b', marginTop: '10px', fontStyle: 'italic'}}>
+              <p style={{fontSize: '0.85rem', color: '#64748b', marginTop: '15px', fontStyle: 'italic'}}>
                   * Ao selecionar ambos, o teste será enviado automaticamente para a fila de execução do responsável.
               </p>
             </section>
 
             {/* CARD 3: PASSOS */}
-            <section className="card">
-               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                 <h3 style={{margin: 0, color: '#334155', fontSize: '1.1rem'}}>Passos</h3>
-                 <button type="button" onClick={addStep} className="btn small" style={{backgroundColor: '#f1f5f9', color: '#334155'}}>+ Passo</button>
+            <section className="card" style={{padding: '25px'}}>
+               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                 <h3 style={{margin: 0, color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>Passos</h3>
+                 <button type="button" onClick={addStep} className="btn" style={{backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #e5e7eb'}}>+ Passo</button>
                </div>
                
                <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
                  {form.passos.map((passo, idx) => (
-                   <div key={idx} style={{display: 'flex', gap: '15px', alignItems: 'flex-start', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                   <div key={idx} style={{
+                       display: 'grid', 
+                       gridTemplateColumns: '40px 1fr 50px', // Layout: Num | Inputs | Botão
+                       gap: '15px', 
+                       alignItems: 'center', 
+                       padding: '15px', 
+                       backgroundColor: '#f8fafc', 
+                       borderRadius: '6px', 
+                       border: '1px solid #e2e8f0'
+                   }}>
+                      {/* Número do Passo */}
                       <div style={{
-                          height: '28px', 
-                          borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                          fontSize: '0.85rem', fontWeight: 'bold', marginTop: '3px'
+                          fontSize: '1.1rem', fontWeight: 'bold', color: '#1e293b', textAlign: 'center'
                       }}>
                         {idx + 1}
                       </div>
                       
-                      <div style={{flex: 1}}>
+                      {/* Inputs Empilhados */}
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                          <input 
-                            placeholder="Ação (O que o testador deve fazer)" 
+                            placeholder="Ação (Ex: Aceder ao menu Pagamentos)" 
                             value={passo.acao} 
                             onChange={e => updateStep(idx, 'acao', e.target.value)}
-                            style={{width: '100%', marginBottom: '8px', fontWeight: 500, border: '1px solid #cbd5e1'}} 
+                            style={{
+                                ...inputStyle, 
+                                backgroundColor: 'white', 
+                                padding: '8px 12px'
+                            }} 
                          />
                          <input 
                             placeholder="Resultado Esperado" 
                             value={passo.resultado_esperado} 
                             onChange={e => updateStep(idx, 'resultado_esperado', e.target.value)}
-                            style={{width: '100%', fontSize: '0.9rem', color: '#059669', border: '1px solid #cbd5e1'}} 
+                            style={{
+                                ...inputStyle, 
+                                backgroundColor: 'white',
+                                color: '#059669', // Texto Verde (sucesso)
+                                borderColor: '#d1fae5', // Borda subtil verde
+                                padding: '8px 12px'
+                            }} 
                          />
                       </div>
                       
-                      <button 
-                        type="button" 
-                        onClick={() => removeStep(idx)} 
-                        className="btn danger" 
-                        style={{padding: '5px 10px', height: '30px'}}
-                        title="Remover passo"
-                      >
-                        X
-                      </button>
+                      {/* Botão de Excluir (Quadrado Azul) */}
+                      <div style={{textAlign: 'right'}}>
+                          <button 
+                            type="button" 
+                            onClick={() => removeStep(idx)} 
+                            className="btn" 
+                            style={{
+                                backgroundColor: '#1e3a8a', // Azul Escuro
+                                color: 'white',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 0,
+                                fontWeight: 'bold'
+                            }}
+                            title="Remover passo"
+                          >
+                            X
+                          </button>
+                      </div>
                    </div>
                  ))}
                </div>
 
-               <div className="actions" style={{marginTop: '30px', borderTop: '1px solid #f1f5f9', paddingTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px'}}>
-                  <button type="button" onClick={handleReset} className="btn large">Cancelar</button>
-                  <button type="submit" className="btn primary large">
-                    {editingId ? 'Salvar Alterações' : 'Criar Caso de Teste'}
+               {/* Rodapé de Ações */}
+               <div className="actions" style={{
+                   marginTop: '30px', 
+                   borderTop: '1px solid #e5e7eb', 
+                   paddingTop: '20px', 
+                   display: 'flex', 
+                   justifyContent: 'flex-end', 
+                   gap: '15px'
+               }}>
+                  <button 
+                    type="button" 
+                    onClick={handleReset} 
+                    className="btn" 
+                    style={{backgroundColor: '#e5e7eb', color: '#374151', padding: '10px 20px'}}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn primary" 
+                    style={{backgroundColor: '#1e3a8a', padding: '10px 25px'}}
+                  >
+                    {editingId ? 'Salvar Alterações' : 'Salvar Caso de Teste'}
                   </button>
                </div>
             </section>
@@ -373,25 +410,24 @@ export function AdminCasosTeste() {
         </div>
       )}
 
-      {/* LISTAGEM DE CASOS */}
+      {/* --- MODO LISTA (Mantido igual) --- */}
       {view === 'list' && (
         <section className="card">
            {loading ? <p>Carregando biblioteca...</p> : (
              <div className="table-wrap">
                {casos.length === 0 ? (
                  <div style={{textAlign: 'center', padding: '40px', color: '#94a3b8'}}>
-                    <p style={{fontSize: '1.2rem'}}>Nenhum caso de teste encontrado neste projeto.</p>
-                    <button onClick={handleNew} className="btn primary">Crie o primeiro teste agora</button>
+                    <p style={{fontSize: '1.2rem'}}>Nenhum caso de teste encontrado.</p>
                  </div>
                ) : (
                  <table>
                    <thead>
                      <tr>
-                       <th style={{width: '60px'}}>ID</th>
+                       <th style={{width: '50px'}}>ID</th>
                        <th>Cenário</th>
                        <th>Prioridade</th>
-                       <th>Testador</th>
-                       <th>Passos</th>
+                       <th>Testador Padrão</th>
+                       <th style={{textAlign: 'center'}}>Passos</th>
                        <th style={{textAlign: 'right'}}>Ações</th>
                      </tr>
                    </thead>
@@ -399,9 +435,9 @@ export function AdminCasosTeste() {
                      {casos.map(c => (
                        <tr 
                           key={c.id} 
-                          className="hover-row" // CLASSE DO HOVER
-                          onClick={() => handleEdit(c)} // CLIQUE NA LINHA EDITA
-                          title="Clique para editar"
+                          className="hover-row" 
+                          onClick={() => handleEdit(c)}
+                          style={{cursor: 'pointer'}}
                        >
                          <td style={{color: '#64748b'}}>#{c.id}</td>
                          <td>
@@ -409,30 +445,31 @@ export function AdminCasosTeste() {
                            {c.pre_condicoes && <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>Pré: {c.pre_condicoes}</div>}
                          </td>
                          <td>
-                            <span className={`badge ${c.prioridade === 'alta' ? 'off' : 'on'}`} 
+                            <span className={`badge ${c.prioridade === 'Alta' ? 'off' : 'on'}`} 
                                   style={{
-                                    backgroundColor: c.prioridade === 'alta' ? '#fef2f2' : (c.prioridade === 'media' ? '#fffbeb' : '#f0fdf4'), 
-                                    color: c.prioridade === 'alta' ? '#dc2626' : (c.prioridade === 'media' ? '#b45309' : '#166534'),
-                                    border: '1px solid rgba(0,0,0,0.05)'
+                                    backgroundColor: c.prioridade === 'Alta' ? '#fef2f2' : (c.prioridade === 'Media' ? '#fffbeb' : '#f0fdf4'), 
+                                    color: c.prioridade === 'Alta' ? '#dc2626' : (c.prioridade === 'Media' ? '#b45309' : '#166534'),
+                                    textTransform: 'uppercase', fontSize: '0.7rem'
                                   }}>
-                                {c.prioridade.toUpperCase()}
+                                {c.prioridade}
                             </span>
                          </td>
-                         
                          <td>
-                             {renderResponsavel(c.responsavel_id)}
+                             {c.responsavel ? (
+                               <span className="badge" style={{backgroundColor: '#eef2ff', color: '#3730a3'}}>
+                                 {c.responsavel.nome}
+                               </span>
+                             ) : <span style={{color: '#cbd5e1'}}>-</span>}
                          </td>
-                         
-                         <td>{c.passos?.length || 0}</td>
-                         
+                         <td style={{textAlign: 'center'}}>{c.passos?.length || 0}</td>
                          <td style={{textAlign: 'right'}}>
                             <button 
                                 onClick={(e) => { 
-                                    e.stopPropagation(); // IMPEDE QUE ABRA A EDIÇÃO AO EXCLUIR
+                                    e.stopPropagation(); 
                                     handleDelete(c.id); 
                                 }} 
                                 className="btn danger" 
-                                style={{padding: '6px 12px'}}
+                                style={{padding: '4px 10px', fontSize: '0.8rem'}}
                             >
                                 Excluir
                             </button>
