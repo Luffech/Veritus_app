@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate, Link, useL
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { AdminUsers } from './pages/AdminUsers';
-import './index.css';
+import './styles/index.css';
 
 // Imports das páginas
 import { AdminSistemas } from './pages/AdminSistemas';
