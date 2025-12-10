@@ -187,6 +187,9 @@ export function AdminCiclos() {
           setCicloToDelete(null);
       }
   };
+  const truncate = (str, n = 30) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  };
 
   const navbarTarget = document.getElementById('header-actions');
 
@@ -206,18 +209,30 @@ export function AdminCiclos() {
         confirmText="Sim, Excluir"
         isDanger={true}
       />
-
+      
       {navbarTarget && createPortal(
-        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-           <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-             <span style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase'}}>Projeto:</span>
-             <select 
-                value={selectedProjeto} onChange={e => setSelectedProjeto(e.target.value)}
-                style={{padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.9rem', backgroundColor: '#fff'}}
-             >
-                {projetos.filter(p => p.status === 'ativo').map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-             </select>
-           </div>
+      <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+          <span style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase'}}>Projeto:</span>
+          <select 
+              value={selectedProjeto} 
+              onChange={e => setSelectedProjeto(e.target.value)}
+              style={{
+                  padding: '6px 10px', 
+                  borderRadius: '4px', 
+                  border: '1px solid #cbd5e1', 
+                  fontSize: '0.9rem', 
+                  backgroundColor: '#fff',
+                  maxWidth: '300px' 
+              }}
+          >
+              {projetos.filter(p => p.status === 'ativo').map(p => (
+                  <option key={p.id} value={p.id} title={p.nome}>
+                      {truncate(p.nome, 30)}
+                  </option>
+              ))}
+          </select>
+        </div>
            {view === 'list' ? (
              <button 
                 onClick={handleNew} 

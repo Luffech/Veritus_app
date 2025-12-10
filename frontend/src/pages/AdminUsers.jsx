@@ -159,6 +159,9 @@ export function AdminUsers() {
           setUserToDelete(null);
       }
   };
+  const truncate = (str, n = 40) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  };
 
   /* ==========================================================================
      RENDERIZAÇÃO
@@ -301,7 +304,7 @@ export function AdminUsers() {
                         </strong>
                     </td>
                     <td>
-                        {u.nome?.split(' ')[0]}
+                        {truncate(u.nome, 20)?.split(' ')[0]}
                     </td>
                     <td style={{fontSize: '0.85rem'}}>{u.email}</td>
                     <td>

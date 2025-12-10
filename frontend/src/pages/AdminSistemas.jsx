@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { api } from '../services/api';
-// Certifique-se de que o caminho do import abaixo está correto
 import { ConfirmationModal } from '../components/ConfirmationModal'; 
 
 /* ==========================================================================
@@ -38,6 +37,19 @@ export function AdminSistemas() {
   // Salvar (Criar ou Editar)
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // --- NOVA VALIDAÇÃO DE DUPLICIDADE ---
+    const nomeNormalizado = form.nome.trim().toLowerCase();
+    const duplicado = sistemas.some(s => 
+        s.nome.trim().toLowerCase() === nomeNormalizado && 
+        s.id !== editingId
+    );
+
+    if (duplicado) {
+        return toast.warning("Já existe um Sistema com este nome.");
+    }
+    // -------------------------------------
+
     try {
       if (editingId) {
         await api.put(`/sistemas/${editingId}`, form);
@@ -74,15 +86,12 @@ export function AdminSistemas() {
       }
   };
 
-  // --- LÓGICA DO MODAL (PASSO 1): Pedir para excluir ---
-  // Esta função abre a janela bonita em vez do alert feio
+  // --- LÓGICA DO MODAL ---
   const requestDelete = (sistema) => {
       setSistemaToDelete(sistema);
       setIsDeleteModalOpen(true);
   };
 
-  // --- LÓGICA DO MODAL (PASSO 2): Confirmar exclusão ---
-  // Esta função é chamada quando o usuário clica em "Sim, Excluir" no Modal
   const confirmDelete = async () => {
       if (!sistemaToDelete) return;
       
@@ -97,9 +106,17 @@ export function AdminSistemas() {
           setSistemaToDelete(null); 
       }
   };
+  const truncate = (str, n = 40) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  };
 
   return (
     <main className="container grid">
+      <style>{`
+        tr.selectable { transition: background-color 0.2s; }
+        tr.selectable:hover { background-color: #f1f5f9 !important; cursor: pointer; }
+        tr.selected { background-color: #e0f2fe !important; }
+      `}</style>
       
       {/* O componente Modal fica aqui, invisível até ser chamado */}
       <ConfirmationModal 
@@ -139,24 +156,30 @@ export function AdminSistemas() {
         <div className="table-wrap">
             {loading ? <p>Carregando...</p> : (
                 <table>
-                    <thead><tr><th>Nome</th><th style={{textAlign: 'right'}}>Ações</th></tr></thead>
+                    <thead><tr><th>Nome</th><th>Status</th><th style={{textAlign: 'right'}}>Ações</th></tr></thead>
                     <tbody>
                         {sistemas.map(s => (
                             <tr key={s.id} onClick={() => handleSelectRow(s)} className={editingId === s.id ? 'selected' : 'selectable'} style={{opacity: s.ativo ? 1 : 0.6}}>
                                 <td>
-                                    <strong>{s.nome}</strong>
-                                    <div className="muted" style={{fontSize:'0.8rem'}}>{s.descricao}</div>
-                                </td>
+                                  <strong title={s.nome }>
+                                      {truncate(s.nome )} 
+                                  </strong>
+                                  <div className="muted" style={{fontSize: '0.8rem'}} title={s.descricao }>
+                                      {truncate(s.descricao, 40)}
+                                  </div>
+                              </td>
                                 <td style={{textAlign: 'right', whiteSpace: 'nowrap'}}>
                                     <span onClick={(e) => { e.stopPropagation(); toggleActive(s); }} className={`badge ${s.ativo ? 'on' : 'off'}`} style={{marginRight:'10px', cursor:'pointer'}}>
                                         {s.ativo ? 'Ativo' : 'Inativo'}
                                     </span>
                                     
-                                    {/* O BOTÃO CORRIGIDO ESTÁ ABAIXO */}
+                                    
+                                </td>
+                                <td>
                                     <button 
                                         onClick={(e) => { 
                                             e.stopPropagation(); 
-                                            requestDelete(s); // <--- Chamada Correta
+                                            requestDelete(s); 
                                         }}
                                         className="btn danger small"
                                     >

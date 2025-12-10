@@ -69,6 +69,13 @@ export function AdminProjetos() {
     
     if (!form.modulo_id) {
         return toast.warning("Por favor, selecione um Módulo.");
+    }    
+    const duplicado = projetos.some(p => 
+        p.nome.trim().toLowerCase() === form.nome.trim().toLowerCase() && 
+        p.id !== editingId
+    );
+    if (duplicado) {
+        return toast.warning("Já existe um projeto com este nome. Escolha outro.");
     }
 
     /* Validação de Integridade:
@@ -220,6 +227,10 @@ export function AdminProjetos() {
       );
   };
 
+  const truncate = (str, n = 40) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  };
+
   /* ==========================================================================
      INTERFACE (JSX)
      ========================================================================== */
@@ -228,6 +239,9 @@ export function AdminProjetos() {
       <style>{`
         .status-hover { transition: all 0.2s ease-in-out; }
         .status-hover:hover { filter: brightness(0.95); transform: scale(1.05); cursor: pointer; }
+        tr.selectable { transition: background-color 0.2s; }
+        tr.selectable:hover { background-color: #f1f5f9 !important; cursor: pointer; }
+        tr.selected { background-color: #e0f2fe !important; }
       `}</style>
 
       <ConfirmationModal 
@@ -257,7 +271,7 @@ export function AdminProjetos() {
                             value={m.id}
                             style={{color: m.ativo === false ? '#991b1b' : 'inherit'}}
                         >
-                            {m.nome} {m.ativo === false ? '(Inativo)' : ''}
+                            {truncate(m.nome, 30)} {m.ativo === false ? '(Inativo)' : ''}
                         </option>
                     ))}
                 </select>
@@ -266,7 +280,10 @@ export function AdminProjetos() {
                 <label>Responsável</label>
                 <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})}>
                     <option value="">Sem responsável</option>
-                    {usuarios.map(u => (u.ativo !== false ? <option key={u.id} value={u.id}>{u.nome}</option> : null))}
+                    {usuarios.filter(u => u.ativo !== false && u.nivel_acesso?.nome === 'admin').map(u => (<option key={u.id} value={u.id}>{truncate(u.nome, 20)}
+                    </option>
+                ))
+            }
                 </select>
             </div>
             <div style={{gridColumn: '1/-1'}}>
@@ -296,7 +313,7 @@ export function AdminProjetos() {
                             <th>Módulo</th>
                             <th>Status</th>
                             <th>Responsável</th>
-                            <th style={{textAlign: 'right'}}>Ações</th>
+                            <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -314,7 +331,11 @@ export function AdminProjetos() {
                                         backgroundColor: isFinalizado ? '#f9fafb' : 'transparent'
                                     }}
                                 >
-                                    <td><strong>{p.nome}</strong></td>
+                                    <td>
+                                        <strong title={p.nome}>
+                                            {truncate(p.nome, 40)}
+                                        </strong>
+                                    </td>
                                     <td>{renderModuloBadge(p.modulo_id)}</td>
                                     <td>
                                         <span 
@@ -331,7 +352,7 @@ export function AdminProjetos() {
                                         </span>
                                     </td>
                                     <td>{renderResponsavel(p.responsavel_id)}</td>
-                                    <td style={{textAlign: 'right'}}>
+                                    <td>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); requestDelete(p); }}
                                             className="btn danger small"

@@ -3,6 +3,13 @@ from datetime import datetime
 from typing import List, Optional
 from app.models.testing import PrioridadeEnum
 
+# --- 1. NOVO SCHEMA PARA O USUÁRIO (Adicione isto no topo) ---
+class UsuarioSimple(BaseModel):
+    id: int
+    nome: str
+    email: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
 # --- PASSO DO CASO DE TESTE ---
 class PassoCasoTesteBase(BaseModel):
     ordem: int
@@ -12,7 +19,6 @@ class PassoCasoTesteBase(BaseModel):
 class PassoCasoTesteCreate(PassoCasoTesteBase):
     pass
 
-# Adicione este Schema para atualização individual de passos 
 class PassoCasoTesteUpdate(BaseModel):
     id: Optional[int] = None 
     ordem: int
@@ -46,9 +52,14 @@ class CasoTesteUpdate(BaseModel):
     responsavel_id: Optional[int] = None
     passos: Optional[List[PassoCasoTesteUpdate]] = None 
 
+# --- 2. ATUALIZAÇÃO NO RESPONSE ---
 class CasoTesteResponse(CasoTesteBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
     passos: List[PassoCasoTesteResponse] = []
+    
+    # ADICIONADO: Isso permite que o objeto "responsavel" apareça no JSON
+    responsavel: Optional[UsuarioSimple] = None 
+
     model_config = ConfigDict(from_attributes=True)

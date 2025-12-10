@@ -181,6 +181,10 @@ export function AdminCasosTeste() {
       }
   };
 
+  const truncate = (str, n = 30) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  };
+
   const inputStyle = {
     width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '4px',
     fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box'
@@ -188,6 +192,11 @@ export function AdminCasosTeste() {
 
   return (
     <main className="container">
+      <style>{`
+        .hover-row { transition: background-color 0.2s ease-in-out; cursor: pointer;}
+        .hover-row:hover { background-color: #f1f5f9 !important; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; }
+      `}</style>
       <ConfirmationModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -205,15 +214,26 @@ export function AdminCasosTeste() {
         </div>
         
         {view === 'list' && (
-          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}> {/* <--- FALTAVA ESSA DIV PAI */}
              <div style={{textAlign: 'right'}}>
                <label style={{display: 'block', fontSize: '0.7rem', fontWeight: 'bold', color: '#64748b', marginBottom: '2px', textTransform: 'uppercase'}}>PROJETO ATIVO</label>
                <select 
                   value={selectedProjeto} 
                   onChange={e => setSelectedProjeto(e.target.value)}
-                  style={{padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', minWidth: '200px', fontWeight: 500}}
+                  style={{
+                      padding: '8px', 
+                      borderRadius: '6px', 
+                      border: '1px solid #cbd5e1', 
+                      minWidth: '200px', 
+                      maxWidth: '300px', 
+                      fontWeight: 500
+                  }}
                >
-                  {projetos.filter(p => p.status === 'ativo').map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                  {projetos.filter(p => p.status === 'ativo').map(p => (
+                      <option key={p.id} value={p.id} title={p.nome}>
+                          {truncate(p.nome, 30)}
+                      </option>
+                  ))}
                </select>
              </div>
              <button onClick={handleNew} className="btn primary">Novo Cenário</button>
@@ -281,20 +301,28 @@ export function AdminCasosTeste() {
                         disabled={!!editingId}
                     >
                        <option value="">Apenas Salvar na Biblioteca</option>
-                       {ciclos.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.status})</option>)}
+                       {ciclos.map(c => <option key={c.id} value={c.id}>{truncate(c.nome, 20)} ({c.status})</option>)}
                     </select>
                   </div>
                   <div>
-                    <label>Responsável</label>
+                    <label>Responsável (Apenas Testadores)</label>
                     <select 
                         value={form.responsavel_id} 
                         onChange={e => setForm({...form, responsavel_id: e.target.value})}
                         style={{...inputStyle, backgroundColor: '#f3f4f6'}}
                     >
-                       <option value="">Definir depois</option>
-                       {usuarios.map(u => (u.ativo ? <option key={u.id} value={u.id}>{u.nome}</option> : null))}
+                        <option value="">Definir depois</option>
+                        
+                        {usuarios
+                            .filter(u => u.ativo && u.nivel_acesso?.nome === 'user')
+                            .map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {truncate(u.nome, 30)}
+                                </option>
+                            ))
+                        }
                     </select>
-                  </div>
+                </div>
               </div>
             </section>
 

@@ -3,23 +3,15 @@ import { toast } from 'sonner';
 import { api } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
-/* ==========================================================================
-   COMPONENTE: ADMIN MÓDULOS
-   Gerenciamento dos módulos funcionais vinculados a um sistema.
-   ========================================================================== */
 export function AdminModulos() {
   const [modulos, setModulos] = useState([]);
   const [sistemas, setSistemas] = useState([]);
   const [form, setForm] = useState({ nome: '', descricao: '', sistema_id: '' });
   const [editingId, setEditingId] = useState(null);
 
-  // Estados do Modal de Exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [moduloToDelete, setModuloToDelete] = useState(null);
 
-  /* ==========================================================================
-     CARREGAMENTO INICIAL
-     ========================================================================== */
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
@@ -47,14 +39,32 @@ export function AdminModulos() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // VALIDAÇÃO MANUAL: Verifica se o sistema foi selecionado
-    // Se não tiver sistema_id, mostra o Toast Amarelo e para a função.
     if (!form.sistema_id) {
         return toast.warning("Selecione um Sistema Pai.");
     }
 
+    // --- NOVA VALIDAÇÃO DE DUPLICIDADE ---
+    const nomeNormalizado = form.nome.trim().toLowerCase();
+    const sistemaIdSelecionado = parseInt(form.sistema_id);
+
+    const duplicado = modulos.some(m => {
+        // 1. Verifica se é do mesmo sistema
+        const mesmoSistema = m.sistema_id === sistemaIdSelecionado;
+        // 2. Verifica se o nome é igual (ignorando maiúsculas/minúsculas)
+        const mesmoNome = m.nome.trim().toLowerCase() === nomeNormalizado;
+        // 3. Se estiver editando, ignora o próprio ID para não bloquear a si mesmo
+        const naoEhOProprio = m.id !== editingId;
+
+        return mesmoSistema && mesmoNome && naoEhOProprio;
+    });
+
+    if (duplicado) {
+        return toast.warning("Já existe um módulo com este nome neste sistema.");
+    }
+    // -------------------------------------
+
     try {
-      const payload = { ...form, sistema_id: parseInt(form.sistema_id) };
+      const payload = { ...form, sistema_id: sistemaIdSelecionado };
       
       if (editingId) {
           await api.put(`/modulos/${editingId}`, payload);
@@ -65,6 +75,7 @@ export function AdminModulos() {
       }
       
       handleCancel();
+      // Recarrega a lista para garantir sincronia
       const updatedMods = await api.get("/modulos/");
       setModulos(updatedMods);
 
@@ -87,9 +98,8 @@ export function AdminModulos() {
       setEditingId(modulo.id);
   };
 
-  /* ==========================================================================
-     AÇÕES DE STATUS E EXCLUSÃO
-     ========================================================================== */
+  // ... (RESTANTE DO CÓDIGO PERMANECE IGUAL: toggleActive, delete, render, etc.)
+  
   const toggleActive = async (modulo) => {
       try {
           await api.put(`/modulos/${modulo.id}`, { ativo: !modulo.ativo });
@@ -121,10 +131,9 @@ export function AdminModulos() {
 
   const getSistemaName = (id) => sistemas.find(s => s.id === id)?.nome || 'Sistema Removido';
   const sistemasAtivos = sistemas.filter(s => s.ativo);
-
-  /* ==========================================================================
-     RENDERIZAÇÃO
-     ========================================================================== */
+  const truncate = (str, n = 40) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+};
   return (
     <main className="container grid">
       <ConfirmationModal 
@@ -143,13 +152,12 @@ export function AdminModulos() {
           <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
             <div>
                 <label>Sistema Pai</label>
-                {/* REMOVIDO O ATRIBUTO 'required' DAQUI PARA FUNCIONAR O TOAST */}
                 <select 
                     value={form.sistema_id} 
                     onChange={e => setForm({...form, sistema_id: e.target.value})} 
                 >
                     <option value="">Selecione um sistema...</option>
-                    {sistemasAtivos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                    {sistemasAtivos.map(s => <option key={s.id} value={s.id}>{truncate(s.nome, 30)}</option>)}
                 </select>
             </div>
             <div>
@@ -189,7 +197,7 @@ export function AdminModulos() {
         <div className="table-wrap">
             {modulos.length === 0 ? <p className="muted" style={{textAlign:'center', padding:'20px'}}>Nenhum módulo cadastrado.</p> : (
                 <table>
-                    <thead><tr><th>Módulo</th><th>Sistema</th><th style={{textAlign:'right'}}>Ações</th></tr></thead>
+                    <thead><tr><th>Módulo</th><th>Sistema</th><th>Status</th><th>Ações</th></tr></thead>
                     <tbody>
                         {modulos.map(m => (
                             <tr 
@@ -199,12 +207,16 @@ export function AdminModulos() {
                                 style={{opacity: m.ativo ? 1 : 0.6}}
                             >
                                 <td>
-                                    <strong>{m.nome}</strong>
-                                    <div className="muted" style={{fontSize: '0.8rem'}}>{m.descricao}</div>
+                                    <strong title={m.nome }>
+                                        {truncate(m.nome )} 
+                                    </strong>
+                                    <div className="muted" style={{fontSize: '0.8rem'}} title={m.descricao }>
+                                        {truncate(m.descricao, 40)}
+                                    </div>
                                 </td>
                                 <td>
                                     <span className="badge" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>
-                                        {getSistemaName(m.sistema_id)}
+                                        {truncate(getSistemaName(m.sistema_id), 20)}
                                     </span>
                                 </td>
                                 <td style={{textAlign: 'right', whiteSpace: 'nowrap'}}>
@@ -212,10 +224,12 @@ export function AdminModulos() {
                                         onClick={(e) => { e.stopPropagation(); toggleActive(m); }}
                                         className={`badge ${m.ativo ? 'on' : 'off'}`}
                                         title="Clique para alternar"
-                                        style={{cursor: 'pointer', marginRight: '10px'}}
+                                        style={{cursor: 'pointer', marginRight: '40%'}}
                                     >
                                         {m.ativo ? 'Ativo' : 'Inativo'}
-                                    </span>
+                                    </span>                                    
+                                </td>
+                                <td>
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); requestDelete(m); }}
                                         className="btn danger small"
