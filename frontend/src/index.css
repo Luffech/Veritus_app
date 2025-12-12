@@ -250,17 +250,18 @@ body {
 }
 
 .btn.primary:hover { 
-  background-color: #172554; 
+  background-color: #1E3A8A; 
   transform: translateY(-1px);
 }
 
 .btn.danger { 
-  background-color: #EF4444; 
+  background-color: #1E3A8A; 
   color: var(--white); 
 }
 
+
 .btn.danger:hover {
-  background-color: #DC2626;
+  background-color: #1E3A8A;
 }
 
 .btn.small {

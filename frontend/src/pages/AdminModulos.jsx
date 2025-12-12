@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -11,21 +11,34 @@ export function AdminModulos() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [moduloToDelete, setModuloToDelete] = useState(null);
-
-  // Estado para busca
+    
+  // --- ESTADOS DA BUSCA CUSTOMIZADA ---
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null); 
 
-  // Filtro
+  // Filtro da tabela
   const filteredModulos = modulos.filter(m => 
       m.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Função auxiliar de truncate
-  const truncate = (str, n = 40) => {
+  // Truncate (cortar texto)
+  const truncate = (str, n = 30) => {
     return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
   };
 
   useEffect(() => { loadData(); }, []);
+
+  // Fecha sugestões ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef]);
 
   const loadData = async () => {
     try {
@@ -46,17 +59,10 @@ export function AdminModulos() {
     }
   };
 
-  /* ==========================================================================
-     AÇÕES DE FORMULÁRIO (SALVAR)
-     ========================================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!form.sistema_id) {
-        return toast.warning("Selecione um Sistema Pai.");
-    }
+    if (!form.sistema_id) return toast.warning("Selecione um Sistema Pai.");
 
-    // Validação de Duplicidade
     const nomeNormalizado = form.nome.trim().toLowerCase();
     const sistemaIdSelecionado = parseInt(form.sistema_id);
 
@@ -67,25 +73,20 @@ export function AdminModulos() {
         return mesmoSistema && mesmoNome && naoEhOProprio;
     });
 
-    if (duplicado) {
-        return toast.warning("Já existe um módulo com este nome neste sistema.");
-    }
+    if (duplicado) return toast.warning("Já existe um módulo com este nome neste sistema.");
 
     try {
       const payload = { ...form, sistema_id: sistemaIdSelecionado };
-      
       if (editingId) {
           await api.put(`/modulos/${editingId}`, payload);
-          toast.success("Módulo atualizado com sucesso!");
+          toast.success("Módulo atualizado!");
       } else {
           await api.post("/modulos/", { ...payload, ativo: true });
-          toast.success("Módulo criado com sucesso!");
+          toast.success("Módulo criado!");
       }
-      
       handleCancel();
       const updatedMods = await api.get("/modulos/");
       setModulos(updatedMods);
-
     } catch (error) { 
         toast.error(error.message || "Erro ao salvar módulo."); 
     }
@@ -97,11 +98,7 @@ export function AdminModulos() {
   };
 
   const handleSelectRow = (modulo) => {
-      setForm({
-          nome: modulo.nome, 
-          descricao: modulo.descricao, 
-          sistema_id: modulo.sistema_id
-      });
+      setForm({ nome: modulo.nome, descricao: modulo.descricao, sistema_id: modulo.sistema_id });
       setEditingId(modulo.id);
   };
   
@@ -110,11 +107,8 @@ export function AdminModulos() {
           const novoStatus = !modulo.ativo;
           await api.put(`/modulos/${modulo.id}`, { ativo: novoStatus });
           toast.success(`Módulo ${novoStatus ? 'ativado' : 'desativado'}.`);
-          // Atualiza localmente para feedback instantâneo
           setModulos(prev => prev.map(m => m.id === modulo.id ? { ...m, ativo: novoStatus } : m));
-      } catch(e) { 
-          toast.error("Erro ao alterar status."); 
-      }
+      } catch(e) { toast.error("Erro ao alterar status."); }
   };
 
   const requestDelete = (modulo) => {
@@ -129,24 +123,61 @@ export function AdminModulos() {
           toast.success("Módulo excluído.");
           setModulos(prev => prev.filter(m => m.id !== moduloToDelete.id));
           if (editingId === moduloToDelete.id) handleCancel();
-      } catch (error) {
-          toast.error(error.message || "Não foi possível excluir.");
-      } finally {
-          setModuloToDelete(null);
-      }
+      } catch (error) { toast.error(error.message || "Não foi possível excluir."); } 
+      finally { setModuloToDelete(null); }
   };
 
   const getSistemaName = (id) => sistemas.find(s => s.id === id)?.nome || 'Sistema Removido';
   const sistemasAtivos = sistemas.filter(s => s.ativo);
 
+  // Lógica: Se vazio, pega os 5 últimos (maior ID). Se tem texto, filtra.
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...modulos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : modulos.filter(m => m.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
+
   return (
     <main className="container grid">
+      {/* CSS DO MENU CUSTOMIZADO SIMPLIFICADO */}
+      <style>{`
+        .custom-dropdown {
+          position: absolute;
+          top: 105%;
+          left: 0;
+          width: 100%;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          z-index: 50;
+          max-height: 250px;
+          overflow-y: auto;
+          list-style: none;
+          padding: 5px 0; /* Padding leve na lista */
+          margin: 0;
+        }
+        .custom-dropdown li {
+          padding: 10px 15px; /* Espaçamento interno confortável */
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          font-size: 0.9rem;
+          color: #334155;
+          display: flex;
+          align-items: center; /* Centraliza texto verticalmente */
+        }
+        .custom-dropdown li:last-child { border-bottom: none; }
+        .custom-dropdown li:hover { 
+            background-color: #f1f5f9; 
+            color: #0f172a; 
+            font-weight: 500; /* Leve destaque ao passar o mouse */
+        }
+      `}</style>
+      
       <ConfirmationModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Excluir Módulo?"
-        message={`Tem a certeza que deseja excluir o módulo "${moduloToDelete?.nome}"?`}
+        message={`Tem a certeza que deseja excluir "${moduloToDelete?.nome}"?`}
         confirmText="Sim, Excluir"
         isDanger={true}
       />
@@ -157,65 +188,68 @@ export function AdminModulos() {
           <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
             <div>
                 <label>Sistema Pai</label>
-                <select 
-                    value={form.sistema_id} 
-                    onChange={e => setForm({...form, sistema_id: e.target.value})} 
-                >
-                    <option value="">Selecione um sistema...</option>
-                    {sistemasAtivos.map(s => <option key={s.id} value={s.id}>{truncate(s.nome, 30)}</option>)}
+                <select value={form.sistema_id} onChange={e => setForm({...form, sistema_id: e.target.value})}>
+                    <option value="">Selecione...</option>
+                    {sistemasAtivos.map(s => <option key={s.id} value={s.id}>{truncate(s.nome)}</option>)}
                 </select>
             </div>
             <div>
                 <label>Nome do Módulo</label>
-                <input 
-                    required 
-                    value={form.nome} 
-                    onChange={e => setForm({...form, nome: e.target.value})} 
-                    placeholder="Ex: Contas a Pagar" 
-                />
+                <input required value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} placeholder="Ex: Contas a Pagar" />
             </div>
             <div>
                 <label>Descrição</label>
-                <input 
-                    value={form.descricao} 
-                    onChange={e => setForm({...form, descricao: e.target.value})} 
-                    placeholder="Descrição funcional..."
-                />
+                <input value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} placeholder="Descrição..." />
             </div>
           </div>
-          
           <div className="actions" style={{marginTop: '15px', display: 'flex', gap: '10px'}}>
-            <button type="submit" className="btn primary">
-                {editingId ? 'Atualizar' : 'Salvar'}
-            </button>
-            {editingId && (
-                <button type="button" onClick={handleCancel} className="btn">
-                    Cancelar
-                </button>
-            )}
+            <button type="submit" className="btn primary">{editingId ? 'Atualizar' : 'Salvar'}</button>
+            {editingId && <button type="button" onClick={handleCancel} className="btn">Cancelar</button>}
           </div>
         </form>
       </section>
 
       <section className="card">
-        {/* Cabeçalho da Tabela com Busca */}
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-            <h2 className="section-title" style={{margin: 0}}>Módulos Cadastrados</h2>
-            <div style={{position: 'relative'}}>
+        {/* BUSCA COM DROPDOWN CUSTOMIZADO */}
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px'}}>
+            <h2 className="section-title" style={{margin: 0, whiteSpace: 'nowrap'}}>Módulos Cadastrados</h2>
+            
+            <div ref={wrapperRef} style={{position: 'relative', width: '300px'}}>
                 <input 
                     type="text" 
-                    placeholder="Pesquisar módulo..." 
+                    placeholder="Pesquisar..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
                     style={{
-                        padding: '8px 35px 8px 12px', 
+                        width: '100%',
+                        padding: '10px 40px 10px 15px', 
                         borderRadius: '6px', 
-                        border: '1px solid #cbd5e1', 
+                        border: '1px solid #333',
                         fontSize: '0.9rem',
-                        minWidth: '250px'
+                        height: '42px',
+                        boxSizing: 'border-box'
                     }}
                 />
-                <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8'}}>🔍</span>
+                <span style={{position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8'}}>🔍</span>
+                
+                {/* MENU SUSPENSO - SOMENTE NOMES */}
+                {showSuggestions && opcoesParaMostrar.length > 0 && (
+                    <ul className="custom-dropdown">
+                        {opcoesParaMostrar.map(m => (
+                            <li 
+                                key={m.id} 
+                                onClick={() => {
+                                    setSearchTerm(m.nome);
+                                    setShowSuggestions(false);
+                                }}
+                            >
+                                {/* EXIBE APENAS O NOME DO MÓDULO, COM LIMITE DE CARACTERES */}
+                                {truncate(m.nome, 30)}
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
         </div>
 
@@ -232,48 +266,24 @@ export function AdminModulos() {
                     </thead>
                     <tbody>
                         {filteredModulos.length === 0 ? (
-                             <tr><td colSpan="4" style={{textAlign:'center', padding:'20px'}}>Nenhum módulo encontrado para "{searchTerm}".</td></tr>
+                             <tr><td colSpan="4" style={{textAlign:'center', padding:'20px'}}>Nada encontrado.</td></tr>
                         ) : (
                             filteredModulos.map(m => (
-                                <tr 
-                                    key={m.id} 
-                                    onClick={() => handleSelectRow(m)}
-                                    className={editingId === m.id ? 'selected' : 'selectable'}
-                                    style={{opacity: m.ativo ? 1 : 0.6}}
-                                >
+                                <tr key={m.id} onClick={() => handleSelectRow(m)} className={editingId === m.id ? 'selected' : 'selectable'} style={{opacity: m.ativo ? 1 : 0.6}}>
                                     <td style={{verticalAlign: 'middle'}}>
                                         <strong title={m.nome}>{truncate(m.nome)}</strong>
-                                        <div className="muted" style={{fontSize: '0.8rem'}} title={m.descricao}>
-                                            {truncate(m.descricao, 40)}
-                                        </div>
+                                        <div className="muted" style={{fontSize: '0.8rem'}} title={m.descricao}>{truncate(m.descricao, 40)}</div>
                                     </td>
                                     <td style={{verticalAlign: 'middle'}}>
-                                        <span className="badge" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}} title={getSistemaName(m.sistema_id)}>
-                                            {truncate(getSistemaName(m.sistema_id), 20)}
-                                        </span>
+                                        <span className="badge" style={{backgroundColor: '#e0f2fe', color: '#0369a1'}}>{truncate(getSistemaName(m.sistema_id), 20)}</span>
                                     </td>
-                                    
-                                    {/* Status Centralizado */}
                                     <td style={{textAlign: 'center', verticalAlign: 'middle'}}>
-                                        <span 
-                                            onClick={(e) => { e.stopPropagation(); toggleActive(m); }}
-                                            className={`badge ${m.ativo ? 'on' : 'off'}`}
-                                            title="Clique para alternar"
-                                            style={{cursor: 'pointer'}}
-                                        >
+                                        <span onClick={(e) => { e.stopPropagation(); toggleActive(m); }} className={`badge ${m.ativo ? 'on' : 'off'}`} style={{cursor: 'pointer'}}>
                                             {m.ativo ? 'Ativo' : 'Inativo'}
-                                        </span>                                    
+                                        </span>                                        
                                     </td>
-                                    
-                                    {/* Ações Alinhadas à Direita */}
                                     <td style={{textAlign: 'right', verticalAlign: 'middle'}}>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); requestDelete(m); }}
-                                            className="btn danger small"
-                                            title="Excluir"
-                                        >
-                                            🗑️
-                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); requestDelete(m); }} className="btn danger small">🗑️</button>
                                     </td>
                                 </tr>
                             ))

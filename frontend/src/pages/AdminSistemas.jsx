@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react'; // 1. Adicionado useRef
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal'; 
@@ -13,16 +13,28 @@ export function AdminSistemas() {
   const [form, setForm] = useState({ nome: '', descricao: '' });
   const [editingId, setEditingId] = useState(null);
   
-  // Estados para Modal e Busca
+  // Estados para Modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [sistemaToDelete, setSistemaToDelete] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   
+  // --- ESTADOS DA BUSCA CUSTOMIZADA (NOVO) ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
+
   const LIMITS = { nome: 50, descricao: 100 };
 
-  // --- FILTRO DE BUSCA ---
+  // --- LÓGICA DO DROPDOWN ---
+  // Se vazio: mostra os 5 últimos criados (ID decrescente)
+  // Se tem texto: filtra e mostra até 8 resultados
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...sistemas].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : sistemas.filter(s => s.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
+
+  // --- FILTRO DA TABELA (Mantém a tabela reativa) ---
   const filteredSistemas = sistemas.filter(s => 
-      s.nome.toLowerCase().includes(searchTerm.toLowerCase()) );
+      s.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // --- FUNÇÃO AUXILIAR DE TRUNCATE ---
   const truncate = (str, n = 40) => {
@@ -31,6 +43,17 @@ export function AdminSistemas() {
 
   // --- CARREGAMENTO INICIAL ---
   useEffect(() => { loadSistemas(); }, []);
+
+  // --- FECHAR SUGESTÕES AO CLICAR FORA ---
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef]);
 
   const loadSistemas = async () => {
     setLoading(true);
@@ -90,7 +113,6 @@ export function AdminSistemas() {
           const novoStatus = !sistema.ativo;
           await api.put(`/sistemas/${sistema.id}`, { ativo: novoStatus });
           toast.success(`Sistema ${novoStatus ? 'ativado' : 'desativado'}.`);
-          // Atualiza localmente para evitar re-fetch completo (opcional, mas mais rápido)
           setSistemas(prev => prev.map(s => s.id === sistema.id ? {...s, ativo: novoStatus} : s));
       } catch(e) { 
           toast.error("Erro ao alterar status."); 
@@ -125,6 +147,39 @@ export function AdminSistemas() {
         tr.selectable { transition: background-color 0.2s; }
         tr.selectable:hover { background-color: #f1f5f9 !important; cursor: pointer; }
         tr.selected { background-color: #e0f2fe !important; }
+
+        /* CSS DO DROPDOWN (IGUAL AS OUTRAS PAGINAS) */
+        .custom-dropdown {
+          position: absolute;
+          top: 105%;
+          left: 0;
+          width: 100%;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          z-index: 50;
+          max-height: 250px;
+          overflow-y: auto;
+          list-style: none;
+          padding: 5px 0;
+          margin: 0;
+        }
+        .custom-dropdown li {
+          padding: 10px 15px;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          font-size: 0.9rem;
+          color: #334155;
+          display: flex;
+          align-items: center;
+        }
+        .custom-dropdown li:last-child { border-bottom: none; }
+        .custom-dropdown li:hover { 
+            background-color: #f1f5f9; 
+            color: #0f172a; 
+            font-weight: 500;
+        }
       `}</style>
       
       <ConfirmationModal 
@@ -163,24 +218,44 @@ export function AdminSistemas() {
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
             <h2 className="section-title" style={{margin: 0}}>Sistemas</h2>
             
-            {/* Input de Busca */}
-            <div style={{position: 'relative'}}>
+            {/* Input de Busca com Dropdown */}
+            <div ref={wrapperRef} style={{position: 'relative', width: '250px'}}>
                 <input 
                     type="text" 
-                    placeholder="Pesquisar sistema..." 
+                    placeholder="Pesquisar..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
                     style={{
+                        width: '100%',
                         padding: '8px 35px 8px 12px', 
                         borderRadius: '6px', 
                         border: '1px solid #cbd5e1', 
                         fontSize: '0.9rem',
-                        minWidth: '250px'
+                        height: '38px',
+                        boxSizing: 'border-box'
                     }}
                 />
                 <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8'}}>
                     🔍
                 </span>
+
+                {/* MENU SUSPENSO */}
+                {showSuggestions && opcoesParaMostrar.length > 0 && (
+                    <ul className="custom-dropdown">
+                        {opcoesParaMostrar.map(s => (
+                            <li 
+                                key={s.id} 
+                                onClick={() => {
+                                    setSearchTerm(s.nome);
+                                    setShowSuggestions(false);
+                                }}
+                            >
+                                {truncate(s.nome, 30)}
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
         </div>
 

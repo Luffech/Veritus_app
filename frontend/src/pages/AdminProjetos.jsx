@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react'; // 1. Adicionado useRef
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -23,13 +23,19 @@ export function AdminProjetos() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   
-  // 1. ESTADO DE BUSCA
+  // --- ESTADOS DA BUSCA CUSTOMIZADA (NOVO) ---
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
 
-  /* ==========================================================================
-     LÓGICA DE FILTRAGEM E AUXILIARES
-     ========================================================================== */
-  // 2. FILTRO
+  // --- LÓGICA DO DROPDOWN ---
+  // Se vazio: mostra os 5 últimos criados (ID decrescente)
+  // Se tem texto: filtra e mostra até 8 resultados
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...projetos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : projetos.filter(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
+
+  // --- FILTRO DA TABELA ---
   const filteredProjetos = projetos.filter(p => 
       p.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -39,9 +45,20 @@ export function AdminProjetos() {
   };
 
   /* ==========================================================================
-     CARREGAMENTO DE DADOS
+     CARREGAMENTO DE DADOS & EFFECT
      ========================================================================== */
   useEffect(() => { loadAll(); }, []);
+
+  // Fecha sugestões ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef]);
 
   const loadAll = async () => {
     try {
@@ -223,6 +240,39 @@ export function AdminProjetos() {
         tr.selectable { transition: background-color 0.2s; }
         tr.selectable:hover { background-color: #f1f5f9 !important; cursor: pointer; }
         tr.selected { background-color: #e0f2fe !important; }
+
+        /* CSS DO DROPDOWN (Padrão) */
+        .custom-dropdown {
+          position: absolute;
+          top: 105%;
+          left: 0;
+          width: 100%;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          z-index: 50;
+          max-height: 250px;
+          overflow-y: auto;
+          list-style: none;
+          padding: 5px 0;
+          margin: 0;
+        }
+        .custom-dropdown li {
+          padding: 10px 15px;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          font-size: 0.9rem;
+          color: #334155;
+          display: flex;
+          align-items: center;
+        }
+        .custom-dropdown li:last-child { border-bottom: none; }
+        .custom-dropdown li:hover { 
+            background-color: #f1f5f9; 
+            color: #0f172a; 
+            font-weight: 500;
+        }
       `}</style>
 
       <ConfirmationModal 
@@ -276,24 +326,50 @@ export function AdminProjetos() {
       </section>
 
       <section className="card">
-        {/* 3. CABEÇALHO DA TABELA COM BUSCA */}
+        {/* HEADER COM BUSCA DROPDOWN */}
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
             <h2 className="section-title" style={{margin: 0}}>Lista de Projetos</h2>
-            <div style={{position: 'relative'}}>
+            
+            <div ref={wrapperRef} style={{position: 'relative', width: '250px'}}>
                 <input 
                     type="text" 
-                    placeholder="Pesquisar projeto..." 
+                    placeholder="Pesquisar..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
                     style={{
+                        width: '100%',
                         padding: '8px 35px 8px 12px', 
                         borderRadius: '6px', 
                         border: '1px solid #cbd5e1', 
                         fontSize: '0.9rem',
-                        minWidth: '250px'
+                        height: '38px',
+                        boxSizing: 'border-box'
                     }}
                 />
                 <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8'}}>🔍</span>
+
+                {/* MENU SUSPENSO */}
+                {showSuggestions && opcoesParaMostrar.length > 0 && (
+                    <ul className="custom-dropdown">
+                        {opcoesParaMostrar.map(p => (
+                            <li 
+                                key={p.id} 
+                                onClick={() => {
+                                    setSearchTerm(p.nome);
+                                    setShowSuggestions(false);
+                                }}
+                            >
+                                <span>
+                                    {truncate(p.nome, 25)}
+                                    <span style={{fontSize:'0.75rem', color:'#9ca3af', marginLeft:'8px'}}>
+                                        ({p.status})
+                                    </span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
         </div>
 
@@ -310,7 +386,6 @@ export function AdminProjetos() {
                         </tr>
                     </thead>
                     <tbody>
-                        {/* 4. USA A LISTA FILTRADA */}
                         {filteredProjetos.map(p => {
                             const style = getStatusStyle(p.status);
                             const isFinalizado = p.status === 'finalizado';
