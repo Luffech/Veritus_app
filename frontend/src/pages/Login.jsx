@@ -93,7 +93,7 @@ export function Login() {
       </main>
 
       <div className="image-half">
-        <img src="../../public/logoveritus-login.png" alt="Veritus" className="right-half-image" />
+        <img src="/logoveritus-login.png" alt="Veritus" className="right-half-image" />
       </div>
 
     </div>
