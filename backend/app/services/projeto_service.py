@@ -15,10 +15,15 @@ class ProjetoService:
     async def _validar_responsavel(self, usuario_id: Optional[int]):
         if usuario_id:
             user = await self.user_repo.get_usuario_by_id(usuario_id)
-            if not user:
-                raise HTTPException(status_code=400, detail="Responsável não encontrado.")
-            if not user.ativo:
-                raise HTTPException(status_code=400, detail="Não é possível atribuir um utilizador INATIVO como responsável.")
+            
+        if not user:
+            raise HTTPException(status_code=400, detail="Responsável não encontrado.")
+        
+        if not user.ativo:
+            raise HTTPException(status_code=400, detail="Não é possível atribuir um utilizador INATIVO como responsável.")
+        
+        if user.nivel_acesso.nome != 'admin':
+            raise HTTPException(status_code=400, detail="O responsável pelo projeto deve ter perfil de ADMINISTRADOR.")
 
     async def create(self, data: ProjetoCreate) -> ProjetoResponse:
         await self._validar_responsavel(data.responsavel_id)

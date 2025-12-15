@@ -87,22 +87,21 @@ class TesteRepository:
     async def update_caso_teste(self, caso_id: int, dados: dict) -> Optional[CasoTeste]:
         passos_data = dados.pop('passos', None)
 
+        # 1. Atualiza dados do Caso
         query = (
             sqlalchemy_update(CasoTeste)
             .where(CasoTeste.id == caso_id)
             .values(**dados)
-            .returning(CasoTeste.id)
+            .returning(CasoTeste.id) # Garante que retornou ID
         )
         result = await self.db.execute(query)
-        await self.db.commit()
-        
         updated_id = result.scalars().first()
         
+        # 2. Atualiza Passos
         if updated_id and passos_data is not None:
-            # Remove passos antigos para substituir pelos novos (estratégia simples)
-            # ou atualiza se tiver ID. Aqui mantemos a lógica original de atualização.
             for passo in passos_data:
                 if 'id' in passo and passo['id']:
+                    # Atualiza passo existente
                     await self.db.execute(
                         sqlalchemy_update(PassoCasoTeste)
                         .where(PassoCasoTeste.id == passo['id'])
@@ -113,6 +112,7 @@ class TesteRepository:
                         )
                     )
                 else:
+                    # Cria novo passo
                     novo_passo = PassoCasoTeste(
                         caso_teste_id=caso_id,
                         acao=passo['acao'],
@@ -121,10 +121,15 @@ class TesteRepository:
                     )
                     self.db.add(novo_passo)
             
-            await self.db.commit()
+        # 3. Commit de tudo
+        await self.db.commit()
 
+        # 4. Retorna objeto completo (com responsável carregado)
         if updated_id:
+             # Pequeno truque: expire_all garante que vamos buscar do banco e não do cache velho
+             self.db.expire_all() 
              return await self.get_caso_teste_by_id(updated_id)
+        
         return None
 
     # --- CORREÇÃO AQUI: DELETE EM CASCATA MANUAL ---

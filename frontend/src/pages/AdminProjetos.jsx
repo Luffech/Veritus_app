@@ -1,16 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react'; // 1. Adicionado useRef
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
 /* ==========================================================================
    COMPONENTE: ADMIN PROJETOS
-   Gerenciamento de projetos de teste (vinculados a módulos).
    ========================================================================== */
 export function AdminProjetos() {
-  /* ==========================================================================
-     ESTADOS
-     ========================================================================== */
   const [projetos, setProjetos] = useState([]);
   const [modulos, setModulos] = useState([]);
   const [usuarios, setUsuarios] = useState([]); 
@@ -26,11 +22,43 @@ export function AdminProjetos() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
+  
+  // --- ESTADOS DA BUSCA CUSTOMIZADA (NOVO) ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
+
+  // --- LÓGICA DO DROPDOWN ---
+  // Se vazio: mostra os 5 últimos criados (ID decrescente)
+  // Se tem texto: filtra e mostra até 8 resultados
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...projetos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : projetos.filter(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
+
+  // --- FILTRO DA TABELA ---
+  const filteredProjetos = projetos.filter(p => 
+      p.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const truncate = (str, n = 40) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  };
 
   /* ==========================================================================
-     CARREGAMENTO DE DADOS
+     CARREGAMENTO DE DADOS & EFFECT
      ========================================================================== */
   useEffect(() => { loadAll(); }, []);
+
+  // Fecha sugestões ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef]);
 
   const loadAll = async () => {
     try {
@@ -62,19 +90,21 @@ export function AdminProjetos() {
   };
 
   /* ==========================================================================
-     PERSISTÊNCIA DE DADOS (CRIAR / ATUALIZAR)
+     AÇÕES DE FORMULÁRIO
      ========================================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!form.modulo_id) {
-        return toast.warning("Por favor, selecione um Módulo.");
-    }
+    if (!form.modulo_id) return toast.warning("Por favor, selecione um Módulo.");
 
-    /* Validação de Integridade:
-       Impede a edição se o status atual na lista for 'finalizado', 
-       prevenindo inconsistência de estado entre formulário e banco.
-    */
+    // Validação de Duplicidade
+    const nomeNormalizado = form.nome.trim().toLowerCase();
+    const duplicado = projetos.some(p => 
+        p.nome.trim().toLowerCase() === nomeNormalizado && 
+        p.id !== editingId
+    );
+    if (duplicado) return toast.warning("Já existe um projeto com este nome. Escolha outro.");
+
     if (editingId) {
         const projetoReal = projetos.find(p => p.id === editingId);
         if (projetoReal && projetoReal.status === 'finalizado') {
@@ -114,7 +144,6 @@ export function AdminProjetos() {
       if (projeto.status === 'finalizado') {
           return toast.info("Reative o projeto clicando no status para editá-lo.");
       }
-
       setForm({
           nome: projeto.nome,
           descricao: projeto.descricao || '',
@@ -125,9 +154,6 @@ export function AdminProjetos() {
       setEditingId(projeto.id);
   };
 
-  /* ==========================================================================
-     GESTÃO DE STATUS E EXCLUSÃO
-     ========================================================================== */
   const cycleStatus = async (projeto) => {
       const fluxo = { 'ativo': 'pausado', 'pausado': 'finalizado', 'finalizado': 'ativo' };
       const novoStatus = fluxo[projeto.status] || 'ativo';
@@ -139,10 +165,7 @@ export function AdminProjetos() {
           setProjetos(prev => prev.map(p => 
               p.id === projeto.id ? { ...p, status: novoStatus } : p
           ));
-          
-          if (editingId === projeto.id) {
-              setForm(prev => ({ ...prev, status: novoStatus }));
-          }
+          if (editingId === projeto.id) setForm(prev => ({ ...prev, status: novoStatus }));
 
       } catch(e) { 
           toast.error("Erro ao mudar status."); 
@@ -156,7 +179,6 @@ export function AdminProjetos() {
 
   const confirmDelete = async () => {
       if (!projectToDelete) return;
-
       try {
           await api.delete(`/projetos/${projectToDelete.id}`);
           toast.success("Projeto e dados vinculados excluídos.");
@@ -170,28 +192,18 @@ export function AdminProjetos() {
   };
 
   /* ==========================================================================
-     HELPERS DE RENDERIZAÇÃO
+     HELPERS VISUAIS
      ========================================================================== */
   const renderModuloBadge = (id) => {
       const mod = modulos.find(m => m.id === id);
       if (!mod) return <span style={{color: '#cbd5e1'}}>-</span>;
-
-      if (mod.ativo === false) {
-          return (
-              <span className="badge" style={{
-                  backgroundColor: '#fee2e2', color: '#b91c1c',
-                  border: '1px solid rgba(185, 28, 28, 0.2)'
-              }}>
-                  {mod.nome} (Inativo)
-              </span>
-          );
-      }
       return (
           <span className="badge" style={{
-              backgroundColor: '#eef2ff', color: '#3730a3',
-              border: '1px solid rgba(55, 48, 163, 0.2)'
+              backgroundColor: mod.ativo === false ? '#fee2e2' : '#eef2ff', 
+              color: mod.ativo === false ? '#b91c1c' : '#3730a3',
+              border: `1px solid ${mod.ativo === false ? 'rgba(185, 28, 28, 0.2)' : 'rgba(55, 48, 163, 0.2)'}`
           }}>
-              {mod.nome}
+              {truncate(mod.nome, 25)} {mod.ativo === false ? '(Inativo)' : ''}
           </span>
       );
   };
@@ -215,19 +227,52 @@ export function AdminProjetos() {
             backgroundColor: user.ativo ? '#f3f4f6' : '#fee2e2', 
             color: user.ativo ? '#374151' : '#b91c1c'
         }}>
-            {user.nome} {user.ativo ? '' : '(Inativo)'}
+            {truncate(user.nome, 20)}
         </span>
       );
   };
 
-  /* ==========================================================================
-     INTERFACE (JSX)
-     ========================================================================== */
   return (
     <main className="container grid">
       <style>{`
         .status-hover { transition: all 0.2s ease-in-out; }
         .status-hover:hover { filter: brightness(0.95); transform: scale(1.05); cursor: pointer; }
+        tr.selectable { transition: background-color 0.2s; }
+        tr.selectable:hover { background-color: #f1f5f9 !important; cursor: pointer; }
+        tr.selected { background-color: #e0f2fe !important; }
+
+        /* CSS DO DROPDOWN (Padrão) */
+        .custom-dropdown {
+          position: absolute;
+          top: 105%;
+          left: 0;
+          width: 100%;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          z-index: 50;
+          max-height: 250px;
+          overflow-y: auto;
+          list-style: none;
+          padding: 5px 0;
+          margin: 0;
+        }
+        .custom-dropdown li {
+          padding: 10px 15px;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          font-size: 0.9rem;
+          color: #334155;
+          display: flex;
+          align-items: center;
+        }
+        .custom-dropdown li:last-child { border-bottom: none; }
+        .custom-dropdown li:hover { 
+            background-color: #f1f5f9; 
+            color: #0f172a; 
+            font-weight: 500;
+        }
       `}</style>
 
       <ConfirmationModal 
@@ -246,18 +291,11 @@ export function AdminProjetos() {
           <div className="form-grid">
             <div>
                 <label>Módulo Pai</label>
-                <select 
-                    value={form.modulo_id} 
-                    onChange={e => setForm({...form, modulo_id: e.target.value})}
-                >
+                <select value={form.modulo_id} onChange={e => setForm({...form, modulo_id: e.target.value})}>
                     <option value="">Selecione...</option>
                     {modulos.map(m => (
-                        <option 
-                            key={m.id} 
-                            value={m.id}
-                            style={{color: m.ativo === false ? '#991b1b' : 'inherit'}}
-                        >
-                            {m.nome} {m.ativo === false ? '(Inativo)' : ''}
+                        <option key={m.id} value={m.id} style={{color: m.ativo === false ? '#991b1b' : 'inherit'}}>
+                            {truncate(m.nome, 30)} {m.ativo === false ? '(Inativo)' : ''}
                         </option>
                     ))}
                 </select>
@@ -266,7 +304,9 @@ export function AdminProjetos() {
                 <label>Responsável</label>
                 <select value={form.responsavel_id} onChange={e => setForm({...form, responsavel_id: e.target.value})}>
                     <option value="">Sem responsável</option>
-                    {usuarios.map(u => (u.ativo !== false ? <option key={u.id} value={u.id}>{u.nome}</option> : null))}
+                    {usuarios.filter(u => u.ativo !== false && u.nivel_acesso?.nome === 'admin').map(u => (
+                        <option key={u.id} value={u.id}>{truncate(u.nome, 20)}</option>
+                    ))}
                 </select>
             </div>
             <div style={{gridColumn: '1/-1'}}>
@@ -286,21 +326,67 @@ export function AdminProjetos() {
       </section>
 
       <section className="card">
-        <h2 className="section-title">Lista de Projetos</h2>
+        {/* HEADER COM BUSCA DROPDOWN */}
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+            <h2 className="section-title" style={{margin: 0}}>Lista de Projetos</h2>
+            
+            <div ref={wrapperRef} style={{position: 'relative', width: '250px'}}>
+                <input 
+                    type="text" 
+                    placeholder="Pesquisar..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    style={{
+                        width: '100%',
+                        padding: '8px 35px 8px 12px', 
+                        borderRadius: '6px', 
+                        border: '1px solid #cbd5e1', 
+                        fontSize: '0.9rem',
+                        height: '38px',
+                        boxSizing: 'border-box'
+                    }}
+                />
+                <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8'}}>🔍</span>
+
+                {/* MENU SUSPENSO */}
+                {showSuggestions && opcoesParaMostrar.length > 0 && (
+                    <ul className="custom-dropdown">
+                        {opcoesParaMostrar.map(p => (
+                            <li 
+                                key={p.id} 
+                                onClick={() => {
+                                    setSearchTerm(p.nome);
+                                    setShowSuggestions(false);
+                                }}
+                            >
+                                <span>
+                                    {truncate(p.nome, 25)}
+                                    <span style={{fontSize:'0.75rem', color:'#9ca3af', marginLeft:'8px'}}>
+                                        ({p.status})
+                                    </span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </div>
+
         <div className="table-wrap">
             {projetos.length === 0 ? <p className="muted" style={{textAlign:'center', padding:'20px'}}>Nenhum projeto encontrado.</p> : (
                 <table>
                     <thead>
                         <tr>
-                            <th>Projeto</th>
-                            <th>Módulo</th>
-                            <th>Status</th>
-                            <th>Responsável</th>
+                            <th style={{textAlign: 'left'}}>Projeto</th>
+                            <th style={{textAlign: 'left'}}>Módulo</th>
+                            <th style={{textAlign: 'center'}}>Status</th>
+                            <th style={{textAlign: 'left'}}>Responsável</th>
                             <th style={{textAlign: 'right'}}>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {projetos.map(p => {
+                        {filteredProjetos.map(p => {
                             const style = getStatusStyle(p.status);
                             const isFinalizado = p.status === 'finalizado';
                             
@@ -314,9 +400,14 @@ export function AdminProjetos() {
                                         backgroundColor: isFinalizado ? '#f9fafb' : 'transparent'
                                     }}
                                 >
-                                    <td><strong>{p.nome}</strong></td>
-                                    <td>{renderModuloBadge(p.modulo_id)}</td>
-                                    <td>
+                                    <td style={{verticalAlign: 'middle'}}>
+                                        <strong title={p.nome}>{truncate(p.nome, 40)}</strong>
+                                        <div className="muted" style={{fontSize: '0.8rem'}} title={p.descricao}>
+                                            {truncate(p.descricao, 40)}
+                                        </div>
+                                    </td>
+                                    <td style={{verticalAlign: 'middle'}}>{renderModuloBadge(p.modulo_id)}</td>
+                                    <td style={{textAlign: 'center', verticalAlign: 'middle'}}>
                                         <span 
                                             onClick={(e) => { e.stopPropagation(); cycleStatus(p); }}
                                             className="badge status-hover"
@@ -330,8 +421,8 @@ export function AdminProjetos() {
                                             {p.status.toUpperCase()}
                                         </span>
                                     </td>
-                                    <td>{renderResponsavel(p.responsavel_id)}</td>
-                                    <td style={{textAlign: 'right'}}>
+                                    <td style={{verticalAlign: 'middle'}}>{renderResponsavel(p.responsavel_id)}</td>
+                                    <td style={{textAlign: 'right', verticalAlign: 'middle'}}>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); requestDelete(p); }}
                                             className="btn danger small"
@@ -342,6 +433,9 @@ export function AdminProjetos() {
                                 </tr>
                             );
                         })}
+                        {filteredProjetos.length === 0 && (
+                            <tr><td colSpan="5" style={{textAlign:'center', padding:'20px'}}>Nenhum projeto encontrado para "{searchTerm}"</td></tr>
+                        )}
                     </tbody>
                 </table>
             )}

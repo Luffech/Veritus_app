@@ -1,17 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react'; // 1. Adicionado useRef
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
-/* ==========================================================================
-   COMPONENTE: ADMIN CICLOS (SPRINTS)
-   Gestão de períodos de teste (Ciclos/Sprints) dentro de um Projeto.
-   ========================================================================== */
 export function AdminCiclos() {
-  /* ==========================================================================
-     ESTADOS
-     ========================================================================== */
   const [projetos, setProjetos] = useState([]);
   const [selectedProjeto, setSelectedProjeto] = useState('');
   const [ciclos, setCiclos] = useState([]);
@@ -27,48 +20,28 @@ export function AdminCiclos() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [cicloToDelete, setCicloToDelete] = useState(null);
 
-  /* ==========================================================================
-     CARREGAMENTO INICIAL
-     ========================================================================== */
-  useEffect(() => {
-    const fetchProjetos = async () => {
-        try {
-            const data = await api.get("/projetos");
-            setProjetos(data || []);
-            
-            const ativos = data.filter(p => p.status === 'ativo');
-            if (ativos.length > 0) setSelectedProjeto(ativos[0].id);
-        } catch (e) {
-            console.error(e);
-            toast.error("Erro ao carregar lista de projetos.");
-        }
-    };
-    fetchProjetos();
-  }, []);
+  // --- ESTADOS DA BUSCA CUSTOMIZADA (NOVO) ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    if (selectedProjeto) loadCiclos(selectedProjeto);
-  }, [selectedProjeto]);
+  // --- LÓGICA DO DROPDOWN ---
+  // Se vazio: mostra os 5 últimos (ID decrescente)
+  // Se tem texto: filtra e mostra até 8 resultados
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...ciclos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : ciclos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
 
-  const loadCiclos = async (projId) => {
-    setLoading(true);
-    try {
-      const data = await api.get(`/testes/projetos/${projId}/ciclos`);
-      setCiclos(Array.isArray(data) ? data : []);
-    } catch (error) { 
-        console.error(error); 
-        toast.error("Erro ao carregar ciclos.");
-    } finally { 
-        setLoading(false); 
-    }
+  // --- FILTRO DA LISTA ---
+  const filteredCiclos = ciclos.filter(c => 
+      c.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // --- AUXILIARES ---
+  const truncate = (str, n = 40) => {
+    return (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
   };
 
-  const currentProject = projetos.find(p => p.id == selectedProjeto);
-  const isProjectActive = currentProject?.status === 'ativo';
-
-  /* ==========================================================================
-     HELPERS E UTILITÁRIOS VISUAIS
-     ========================================================================== */
   const formatForInput = (dateString) => dateString ? dateString.split('T')[0] : '';
   const formatDateTable = (dateString) => dateString ? new Date(dateString).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-';
   const getHojeISO = () => new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -101,9 +74,54 @@ export function AdminCiclos() {
       );
   };
 
-  /* ==========================================================================
-     AÇÕES DE INTERFACE
-     ========================================================================== */
+  // --- EFEITOS (Data Fetching & Click Outside) ---
+  useEffect(() => {
+    const fetchProjetos = async () => {
+        try {
+            const data = await api.get("/projetos");
+            setProjetos(data || []);
+            const ativos = data.filter(p => p.status === 'ativo');
+            if (ativos.length > 0) setSelectedProjeto(ativos[0].id);
+        } catch (e) {
+            console.error(e);
+            toast.error("Erro ao carregar lista de projetos.");
+        }
+    };
+    fetchProjetos();
+  }, []);
+
+  useEffect(() => {
+    if (selectedProjeto) loadCiclos(selectedProjeto);
+  }, [selectedProjeto]);
+
+  // Fecha sugestões ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef]);
+
+  const loadCiclos = async (projId) => {
+    setLoading(true);
+    try {
+      const data = await api.get(`/testes/projetos/${projId}/ciclos`);
+      setCiclos(Array.isArray(data) ? data : []);
+    } catch (error) { 
+        console.error(error); 
+        toast.error("Erro ao carregar ciclos.");
+    } finally { 
+        setLoading(false); 
+    }
+  };
+
+  const currentProject = projetos.find(p => p.id == selectedProjeto);
+  const isProjectActive = currentProject?.status === 'ativo';
+
+  // --- HANDLERS ---
   const handleNew = () => {
       if (!isProjectActive) {
           return toast.warning(`Projeto ${currentProject?.status?.toUpperCase()}. Criação de ciclos bloqueada.`);
@@ -127,26 +145,13 @@ export function AdminCiclos() {
 
   const handleCancel = () => { setView('list'); setEditingId(null); };
 
-  /* ==========================================================================
-     PERSISTÊNCIA E EXCLUSÃO
-     ========================================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validação Manual (Agora vai funcionar pois removemos o 'required' do HTML)
     if (!selectedProjeto) return toast.warning("Selecione um projeto!");
-    
-    if (!form.nome.trim()) {
-        return toast.warning("O nome do ciclo é obrigatório.");
-    }
-
-    if (!form.data_inicio || !form.data_fim) {
-        return toast.warning("As datas de início e fim são obrigatórias.");
-    }
-    
-    if (form.data_inicio > form.data_fim) {
-        return toast.warning("A data de início não pode ser maior que a data fim.");
-    }
+    if (!form.nome.trim()) return toast.warning("O nome do ciclo é obrigatório.");
+    if (!form.data_inicio || !form.data_fim) return toast.warning("As datas de início e fim são obrigatórias.");
+    if (form.data_inicio > form.data_fim) return toast.warning("A data de início não pode ser maior que a data fim.");
 
     try {
       const payload = { 
@@ -190,12 +195,44 @@ export function AdminCiclos() {
 
   const navbarTarget = document.getElementById('header-actions');
 
-  /* ==========================================================================
-     RENDERIZAÇÃO
-     ========================================================================== */
   return (
     <main className="container">
-      <style>{`tr.hover-row:hover { background-color: #f1f5f9 !important; cursor: pointer; }`}</style>
+      <style>{`
+        tr.hover-row:hover { background-color: #f1f5f9 !important; cursor: pointer; }
+
+        /* CSS DO DROPDOWN (Igual aos outros) */
+        .custom-dropdown {
+          position: absolute;
+          top: 105%;
+          left: 0;
+          width: 100%;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          z-index: 50;
+          max-height: 250px;
+          overflow-y: auto;
+          list-style: none;
+          padding: 5px 0;
+          margin: 0;
+        }
+        .custom-dropdown li {
+          padding: 10px 15px;
+          border-bottom: 1px solid #f1f5f9;
+          cursor: pointer;
+          font-size: 0.9rem;
+          color: #334155;
+          display: flex;
+          align-items: center;
+        }
+        .custom-dropdown li:last-child { border-bottom: none; }
+        .custom-dropdown li:hover { 
+            background-color: #f1f5f9; 
+            color: #0f172a; 
+            font-weight: 500;
+        }
+      `}</style>
 
       <ConfirmationModal 
         isOpen={isDeleteModalOpen}
@@ -206,16 +243,29 @@ export function AdminCiclos() {
         confirmText="Sim, Excluir"
         isDanger={true}
       />
-
+      
+      {/* PORTAL DO HEADER (PROJETO SELECTOR) */}
       {navbarTarget && createPortal(
         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
              <span style={{fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase'}}>Projeto:</span>
              <select 
-                value={selectedProjeto} onChange={e => setSelectedProjeto(e.target.value)}
-                style={{padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.9rem', backgroundColor: '#fff'}}
+                value={selectedProjeto} 
+                onChange={e => setSelectedProjeto(e.target.value)}
+                style={{
+                    padding: '6px 10px', 
+                    borderRadius: '4px', 
+                    border: '1px solid #cbd5e1', 
+                    fontSize: '0.9rem', 
+                    backgroundColor: '#fff',
+                    maxWidth: '300px'
+                }}
              >
-                {projetos.filter(p => p.status === 'ativo').map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                {projetos.filter(p => p.status === 'ativo').map(p => (
+                    <option key={p.id} value={p.id} title={p.nome}>
+                        {truncate(p.nome, 30)}
+                    </option>
+                ))}
              </select>
            </div>
            {view === 'list' ? (
@@ -234,6 +284,7 @@ export function AdminCiclos() {
         navbarTarget
       )}
 
+      {/* FORMULÁRIO */}
       {view === 'form' && (
         <section className="card">
           <h3 style={{marginTop:0}}>{editingId ? 'Editar Ciclo' : 'Novo Ciclo'}</h3>
@@ -241,11 +292,10 @@ export function AdminCiclos() {
             <div className="form-grid">
                <div style={{gridColumn: '1/-1'}}>
                  <label>Nome do Ciclo / Sprint</label>
-                 {/* ATENÇÃO: 'required' foi removido aqui */}
                  <input 
-                    value={form.nome} 
-                    onChange={e => setForm({...form, nome: e.target.value})} 
-                    placeholder="Ex: Sprint 32" 
+                   value={form.nome} 
+                   onChange={e => setForm({...form, nome: e.target.value})} 
+                   placeholder="Ex: Sprint 32" 
                  />
                </div>
                <div style={{gridColumn: '1/-1'}}>
@@ -254,22 +304,20 @@ export function AdminCiclos() {
                </div>
                <div>
                  <label>Início</label>
-                 {/* 'required' removido */}
                  <input 
-                    type="date" 
-                    value={form.data_inicio} 
-                    onChange={e => setForm({...form, data_inicio: e.target.value})} 
-                    min={!editingId ? getHojeISO() : undefined}
+                   type="date" 
+                   value={form.data_inicio} 
+                   onChange={e => setForm({...form, data_inicio: e.target.value})} 
+                   min={!editingId ? getHojeISO() : undefined}
                  />
                </div>
                <div>
                  <label>Fim</label>
-                 {/* 'required' removido */}
                  <input 
-                    type="date" 
-                    value={form.data_fim} 
-                    onChange={e => setForm({...form, data_fim: e.target.value})} 
-                    min={form.data_inicio}
+                   type="date" 
+                   value={form.data_fim} 
+                   onChange={e => setForm({...form, data_fim: e.target.value})} 
+                   min={form.data_inicio}
                  />
                </div>
                <div>
@@ -290,8 +338,58 @@ export function AdminCiclos() {
         </section>
       )}
 
+      {/* LISTA */}
       {view === 'list' && (
         <section className="card" style={{marginTop:'20px'}}>
+           {/* HEADER DA TABELA COM BUSCA DROPDOWN */}
+           <div style={{paddingBottom: '15px', borderBottom: '1px solid #f1f5f9', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+               <span style={{fontWeight: 600, color: '#64748b'}}>
+                   {ciclos.length} ciclo(s) encontrado(s)
+               </span>
+               
+               <div ref={wrapperRef} style={{position: 'relative', width: '250px'}}>
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por nome..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onFocus={() => setShowSuggestions(true)}
+                        style={{
+                            width: '100%',
+                            padding: '8px 30px 8px 10px', 
+                            borderRadius: '6px', 
+                            border: '1px solid #cbd5e1', 
+                            fontSize: '0.85rem',
+                            height: '36px',
+                            boxSizing: 'border-box'
+                        }}
+                    />
+                    <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)'}}>🔍</span>
+
+                    {/* MENU SUSPENSO */}
+                    {showSuggestions && opcoesParaMostrar.length > 0 && (
+                        <ul className="custom-dropdown">
+                            {opcoesParaMostrar.map(c => (
+                                <li 
+                                    key={c.id} 
+                                    onClick={() => {
+                                        setSearchTerm(c.nome);
+                                        setShowSuggestions(false);
+                                    }}
+                                >
+                                    <span>
+                                        {truncate(c.nome, 25)}
+                                        <span style={{fontSize:'0.75rem', color:'#9ca3af', marginLeft:'8px'}}>
+                                            ({c.status?.replace('_', ' ')})
+                                        </span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+               </div>
+           </div>
+
            {loading ? <p>Carregando...</p> : (
              <div className="table-wrap">
                {ciclos.length === 0 ? (
@@ -311,35 +409,41 @@ export function AdminCiclos() {
                        </tr>
                    </thead>
                    <tbody>
-                     {ciclos.map(c => (
-                       <tr key={c.id} className="hover-row" onClick={() => handleEdit(c)} title="Clique para editar">
-                         <td>
-                             <div style={{fontWeight:600, color:'#334155'}}>{c.nome}</div>
-                             <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>#{c.id} • {c.descricao}</div>
-                         </td>
-                         <td>{formatDateTable(c.data_inicio)} até {formatDateTable(c.data_fim)}</td>
-                         <td>
-                             <span className="badge" style={{backgroundColor: getStatusColor(c.status)}}>
-                                 {c.status.replace('_', ' ').toUpperCase()}
-                             </span>
-                         </td>
-                         <td style={{minWidth: '140px'}}>
-                             {renderProgress(c.testes_concluidos, c.total_testes)}
-                         </td>
-                         <td style={{textAlign: 'right'}}>
-                            <button 
-                                onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    requestDelete(c); 
-                                }} 
-                                className="btn danger small" 
-                                style={{fontSize: '0.8rem', padding: '4px 8px'}}
-                            >
-                                Excluir
-                            </button>
-                         </td>
-                       </tr>
-                     ))}
+                     {filteredCiclos.length === 0 ? (
+                        <tr><td colSpan="5" style={{textAlign:'center', padding:'20px'}}>Nenhum ciclo encontrado para "{searchTerm}".</td></tr>
+                     ) : (
+                        filteredCiclos.map(c => (
+                            <tr key={c.id} className="hover-row" onClick={() => handleEdit(c)} title="Clique para editar">
+                                <td>
+                                    <div style={{fontWeight:600, color:'#334155'}}>{truncate(c.nome, 30)}</div>
+                                    <div style={{fontSize:'0.8rem', color:'#94a3b8'}}>#{c.id} • {truncate(c.descricao, 40)}</div>
+                                </td>
+                                <td style={{whiteSpace: 'nowrap', fontSize: '0.85rem'}}>
+                                    {formatDateTable(c.data_inicio)} até {formatDateTable(c.data_fim)}
+                                </td>
+                                <td>
+                                    <span className="badge" style={{backgroundColor: getStatusColor(c.status)}}>
+                                        {c.status.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                </td>
+                                <td style={{minWidth: '140px'}}>
+                                    {renderProgress(c.testes_concluidos, c.total_testes)}
+                                </td>
+                                <td style={{textAlign: 'right'}}>
+                                    <button 
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            requestDelete(c); 
+                                        }} 
+                                        className="btn danger small" 
+                                        style={{fontSize: '0.8rem', padding: '4px 8px'}}
+                                    >
+                                        Excluir
+                                    </button>
+                                </td>
+                            </tr>
+                        ))
+                     )}
                    </tbody>
                  </table>
                )}
