@@ -76,15 +76,22 @@ export function QARunner() {
   };
 
   const handleStepAction = (passoId, acao) => {
-      if (acao === 'aprovado') {
-          updatePasso(passoId, 'aprovado');
-          toast.success("Passo aprovado.");
-      } else {
-          // Abre modal de defeito
-          setCurrentFailedStep(passoId);
-          setIsDefectModalOpen(true);
-      }
-  };
+  const passo = activeExecucao.passos_executados.find(p => p.id === passoId);
+
+  // 🔒 BLOQUEIO: já foi decidido
+  if (passo.status === 'aprovado' || passo.status === 'reprovado') {
+      toast.warning("Este passo já foi avaliado e não pode ser alterado.");
+      return;
+  }
+
+  if (acao === 'aprovado') {
+      updatePasso(passoId, 'aprovado');
+      toast.success("Passo aprovado.");
+  } else {
+      setCurrentFailedStep(passoId);
+      setIsDefectModalOpen(true);
+  }
+};
 
   const updatePasso = async (passoId, status) => {
       try {

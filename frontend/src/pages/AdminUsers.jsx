@@ -13,6 +13,7 @@ export function AdminUsers() {
      ========================================================================== */
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); /* Constante da Senha */
   
   // Estado de Seleção (Edição)
   const [selectedUser, setSelectedUser] = useState(null);
@@ -72,6 +73,7 @@ export function AdminUsers() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
+
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -83,7 +85,7 @@ export function AdminUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }; 
 
   /* ==========================================================================
      GESTÃO DO FORMULÁRIO
@@ -101,6 +103,7 @@ export function AdminUsers() {
 
   const handleClear = () => {
     setSelectedUser(null);
+    setShowPassword(false);
     setForm({ nome: '', username: '', email: '', senha: '', nivel_acesso_id: 2 });
   };
 
@@ -285,17 +288,38 @@ export function AdminUsers() {
                 <option value="1">Administrador</option>
               </select>
             </div>
-            <div>
-              <label>
-                {selectedUser ? 'Nova Senha (opcional)' : 'Senha'}
-              </label>
-              <input 
-                type="password" 
-                value={form.senha} 
-                onChange={e => setForm({...form, senha: e.target.value})} 
-                placeholder={selectedUser ? "Deixe em branco para manter" : "Mínimo 6 caracteres"}
-              />
-            </div>
+           <div>
+  <label>
+    {selectedUser ? 'Nova Senha (opcional)' : 'Senha'}
+  </label>
+  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+    <input 
+      type={showPassword ? "text" : "password"} 
+      value={form.senha} 
+      onChange={e => setForm({...form, senha: e.target.value})} 
+      placeholder={selectedUser ? "Deixe em branco para manter" : "Mínimo 6 caracteres"}
+      style={{ paddingRight: '40px' }} 
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      style={{
+        position: 'absolute',
+        right: '10px',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '1.2rem',
+        color: '#64748b',
+        padding: '0',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+    >
+      {showPassword ? '👁️‍🗨️' : '👁️'}
+    </button>
+  </div>
+</div>
           </div>
           
           <div className="actions" style={{display: 'flex', gap: '10px', marginTop: '20px'}}>

@@ -321,91 +321,102 @@ export function AdminCasosTeste() {
       )}
 
       {/* --- FORMULÁRIO --- */}
-      {view === 'form' && (
-        <div style={{maxWidth: '100%', margin: '0 auto'}}>
-          <form onSubmit={handleSubmit}>
-            {/* Seção de Detalhes */}
-            <section className="card" style={{marginBottom: '20px', padding: '25px'}}>
-              <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>Detalhes do Cenário</h3>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Título do Cenário <span style={{color:'#ef4444'}}>*</span></label>
-                    <input 
-                       value={form.nome} 
-                       onChange={e => setForm({...form, nome: e.target.value})} 
-                       placeholder="Ex: Validar pagamento"
-                       style={{...inputStyle, fontSize: '1rem'}}
-                    />
-                  </div>
-                  <div className="form-grid">
-                      <div>
-                        <label>Prioridade</label>
-                        <select 
-                            value={form.prioridade} 
-                            onChange={e => setForm({...form, prioridade: e.target.value})}
-                            style={{...inputStyle, backgroundColor: '#f3f4f6'}}
-                        >
-                           <option value="alta">Alta</option>
-                           <option value="media">Média</option>
-                           <option value="baixa">Baixa</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label>Pré-condições</label>
-                        <input 
-                          value={form.pre_condicoes} 
-                          onChange={e => setForm({...form, pre_condicoes: e.target.value})} 
-                          style={inputStyle}
-                        />
-                      </div>
-                  </div>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Objetivo / Critérios</label>
-                    <input
-                       value={form.criterios_aceitacao} 
-                       onChange={e => setForm({...form, criterios_aceitacao: e.target.value})}
-                       style={inputStyle}
-                    />
-                  </div>
+{view === 'form' && (
+  <div style={{maxWidth: '100%', margin: '0 auto'}}>
+    <form onSubmit={handleSubmit}>
+      
+      {/* CONTAINER LADO A LADO PARA DETALHES E ALOCAÇÃO */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr 1fr', 
+        gap: '20px', 
+        marginBottom: '20px',
+        alignItems: 'stretch' 
+      }}>
+        
+        {/* Seção de Detalhes (Removido marginBottom aqui para usar o gap do grid) */}
+        <section className="card" style={{ padding: '25px', marginBottom: 0 }}>
+          <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>Detalhes do Cenário</h3>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+              <div>
+                <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Título do Cenário <span style={{color:'#ef4444'}}>*</span></label>
+                <input 
+                   value={form.nome} 
+                   onChange={e => setForm({...form, nome: e.target.value})} 
+                   placeholder="Ex: Validar pagamento"
+                   style={{...inputStyle, fontSize: '1rem'}}
+                />
               </div>
-            </section>
-
-            {/* Seção de Alocação */}
-            <section className="card" style={{marginBottom: '20px', padding: '25px'}}>
-              <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>Alocação (Opcional)</h3>
               <div className="form-grid">
                   <div>
-                    <label>Ciclo (Sprint)</label>
+                    <label>Prioridade</label>
                     <select 
-                        value={form.ciclo_id} 
-                        onChange={e => setForm({...form, ciclo_id: e.target.value})}
+                        value={form.prioridade} 
+                        onChange={e => setForm({...form, prioridade: e.target.value})}
                         style={{...inputStyle, backgroundColor: '#f3f4f6'}}
-                        disabled={!!editingId}
                     >
-                       <option value="">Apenas Salvar na Biblioteca</option>
-                       {ciclos.map(c => <option key={c.id} value={c.id}>{truncate(c.nome, 20)} ({c.status})</option>)}
+                       <option value="alta">Alta</option>
+                       <option value="media">Média</option>
+                       <option value="baixa">Baixa</option>
                     </select>
                   </div>
                   <div>
-                    <label>Responsável (Apenas Testadores)</label>
-                    <select 
-                        value={form.responsavel_id} 
-                        onChange={e => setForm({...form, responsavel_id: e.target.value})}
-                        style={{...inputStyle, backgroundColor: '#f3f4f6'}}
-                    >
-                        <option value="">Definir depois</option>
-                        {usuarios
-                            .filter(u => u.ativo && u.nivel_acesso?.nome === 'user')
-                            .map(u => (
-                                <option key={u.id} value={u.id}>
-                                    {truncate(u.nome, 30)}
-                                </option>
-                            ))
-                        }
-                    </select>
-                </div>
+                    <label>Pré-condições</label>
+                    <input 
+                      value={form.pre_condicoes} 
+                      onChange={e => setForm({...form, pre_condicoes: e.target.value})} 
+                      style={inputStyle}
+                    />
+                  </div>
               </div>
-            </section>
+              <div>
+                <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Objetivo / Critérios</label>
+                <input
+                   value={form.criterios_aceitacao} 
+                   onChange={e => setForm({...form, criterios_aceitacao: e.target.value})}
+                   style={inputStyle}
+                />
+              </div>
+          </div>
+        </section>
+
+        {/* Seção de Alocação (Removido marginBottom aqui para usar o gap do grid) */}
+        <section className="card" style={{ padding: '25px', marginBottom: 0 }}>
+          <h3 style={{marginTop: 0, marginBottom: '20px', color: '#334155', fontSize: '1.1rem', fontWeight: 700}}>Alocação (Opcional)</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}> {/* Alterado de form-grid para flex column para melhor visualização lateral */}
+              <div>
+                <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Ciclo (Sprint)</label>
+                <select 
+                    value={form.ciclo_id} 
+                    onChange={e => setForm({...form, ciclo_id: e.target.value})}
+                    style={{...inputStyle, backgroundColor: '#f3f4f6'}}
+                    disabled={!!editingId}
+                >
+                   <option value="">Apenas Salvar na Biblioteca</option>
+                   {ciclos.map(c => <option key={c.id} value={c.id}>{truncate(c.nome, 20)} ({c.status})</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151'}}>Responsável (Apenas Testadores)</label>
+                <select 
+                    value={form.responsavel_id} 
+                    onChange={e => setForm({...form, responsavel_id: e.target.value})}
+                    style={{...inputStyle, backgroundColor: '#f3f4f6'}}
+                >
+                    <option value="">Definir depois</option>
+                    {usuarios
+                        .filter(u => u.ativo && u.nivel_acesso?.nome === 'user')
+                        .map(u => (
+                            <option key={u.id} value={u.id}>
+                                {truncate(u.nome, 30)}
+                            </option>
+                        ))
+                    }
+                </select>
+            </div>
+          </div>
+        </section>
+      </div>
 
             {/* Seção de Passos */}
             <section className="card" style={{padding: '25px'}}>
