@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 
+# Tabela de usuários para autenticação e controle de acesso.
 class Usuario(Base):
     __tablename__ = "usuarios"
 
@@ -10,13 +11,17 @@ class Usuario(Base):
     nome = Column(String(255), nullable=False)
     username = Column(String(50), unique=True, index=True, nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
+    
+    # Hash da senha (nunca salvar em texto puro!).
     senha_hash = Column(String(255), nullable=False)
+    
     nivel_acesso_id = Column(Integer, ForeignKey("niveis_acesso.id"), nullable=False)
     ativo = Column(Boolean, default=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships
+    # Relacionamentos com nível de acesso e tarefas atribuídas.
     nivel_acesso = relationship("NivelAcesso", back_populates="usuarios")
     projetos_gerenciados = relationship("Projeto", back_populates="responsavel")
     execucoes_atribuidas = relationship("ExecucaoTeste", back_populates="responsavel")

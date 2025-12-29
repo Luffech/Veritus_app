@@ -12,14 +12,15 @@ class DashboardService:
     def __init__(self, db: AsyncSession):
         self.repo = DashboardRepository(db)
 
+    # Orquestra a busca de dados e formata o JSON final pros gráficos do frontend.
     async def get_dashboard_data(self) -> DashboardResponse:
-        # 1. Busca dados brutos em paralelo 
+        # 1. Busca dados brutos em paralelo (muito mais rápido que sequencial).
         kpis_data = await self.repo.get_kpis_gerais()
         status_exec_data = await self.repo.get_status_execucao_geral()
         severidade_data = await self.repo.get_defeitos_por_severidade()
         modulos_data = await self.repo.get_modulos_com_mais_defeitos()
 
-        # 2. Formata KPIs
+        # 2. Monta os Cards (KPIs) do topo.
         kpis = DashboardKPI(
             total_projetos=kpis_data["total_projetos"],
             total_ciclos_ativos=kpis_data["total_ciclos_ativos"],
@@ -27,7 +28,7 @@ class DashboardService:
             total_defeitos_abertos=kpis_data["total_defeitos_abertos"]
         )
 
-        # 3. Formata Gráfico de Execução (Rosca)
+        # 3. Prepara o Gráfico de Execução (Pie Chart), mapeando cores padrão.
         chart_status = []
         color_map_status = {
             StatusExecucaoEnum.passou: "#10b981",       
@@ -44,7 +45,7 @@ class DashboardService:
                 color=color_map_status.get(status, "#64748b")
             ))
 
-        # 4. Formata Gráfico de Severidade (Barras)
+        # 4. Prepara o Gráfico de Defeitos (Bar Chart) por gravidade.
         chart_severidade = []
         color_map_sev = {
             SeveridadeDefeitoEnum.critico: "#7f1d1d",
@@ -60,7 +61,7 @@ class DashboardService:
                 color=color_map_sev.get(sev, "#000000")
             ))
 
-        # 5. Formata Top Módulos
+        # 5. Prepara o Ranking de Módulos Problemáticos.
         chart_modulos = [
             ChartDataPoint(label=nome, value=count) 
             for nome, count in modulos_data

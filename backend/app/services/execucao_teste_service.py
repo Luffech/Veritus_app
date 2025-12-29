@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, UploadFile # Adicione UploadFile se for usar o upload
-from typing import Optional, List # <--- ADICIONE ESTA LINHA AQUI
+from fastapi import HTTPException, UploadFile 
+from typing import Optional, List 
 from app.repositories.execucao_teste_repository import ExecucaoTesteRepository
 from app.repositories.ciclo_teste_repository import CicloTesteRepository
 from app.repositories.caso_teste_repository import CasoTesteRepository
@@ -14,28 +14,26 @@ import os
 class ExecucaoTesteService:
     def __init__(self, db: AsyncSession):
         self.repo = ExecucaoTesteRepository(db)
-        # Repositórios auxiliares para validação
+        # Repositórios auxiliares para validação cruzada
         self.ciclo_repo = CicloTesteRepository(db)
         self.caso_repo = CasoTesteRepository(db)
 
     async def alocar_teste(self, ciclo_id: int, caso_id: int, responsavel_id: int):
-        # 1. Validações
+        # 1. Validações de existência antes de tentar criar
         ciclo = await self.ciclo_repo.get_by_id(ciclo_id)
         if not ciclo:
              raise HTTPException(status_code=404, detail="Ciclo não encontrado")
-        
-        # (Opcional) Verificar se o ciclo está ativo/em execução antes de alocar
         
         caso = await self.caso_repo.get_by_id(caso_id)
         if not caso:
              raise HTTPException(status_code=404, detail="Caso de Teste não encontrado")
 
-        # 2. Criação
-        # CORREÇÃO AQUI: criar_planejamento (era criar_planejamento_execucao)
+        # 2. Criação do planejamento: Gera a execução e copia os passos do template.
         nova_execucao = await self.repo.criar_planejamento(ciclo_id, caso_id, responsavel_id)
         
         return ExecucaoTesteResponse.model_validate(nova_execucao)
 
+    # Filtra as tarefas da grid "Meus Testes".
     async def listar_tarefas_usuario(
         self, 
         usuario_id: int,
@@ -43,7 +41,6 @@ class ExecucaoTesteService:
         skip: int = 0,
         limit: int = 20
     ):
-        # Repassa os filtros para o repo
         items = await self.repo.get_minhas_execucoes(usuario_id, status, skip, limit)
         return [ExecucaoTesteResponse.model_validate(i) for i in items]
     
@@ -68,13 +65,14 @@ class ExecucaoTesteService:
         
         return await self.repo.update_status_geral(execucao_id, status_final)
     
+    # Gerencia upload de prints/logs para evidência de teste.
     async def upload_evidencia(self, passo_id: int, file: UploadFile):
-        # 1. Busca o passo
+        # 1. Busca o passo para checar limite de arquivos
         passo_atual = await self.repo.get_execucao_passo(passo_id)
         if not passo_atual:
              raise HTTPException(status_code=404, detail="Passo não encontrado")
 
-        # 2. Lógica de tratamento do JSON antigo vs novo
+        # 2. Lógica para lidar com JSON legado ou nulo no banco
         evidencias_lista = []
         if passo_atual.evidencias:
             try:
@@ -84,11 +82,12 @@ class ExecucaoTesteService:
             except:
                 evidencias_lista = [passo_atual.evidencias]
 
+        # Regra de negócio: Limite de 3 imagens por passo pra não estourar o storage.
         if len(evidencias_lista) >= 3:
             raise HTTPException(status_code=400, detail="Limite de 3 evidências atingido.")
 
-        # 3. Salvar Arquivo
-        os.makedirs("evidencias", exist_ok=True) # Garante que a pasta existe
+        # 3. Salva Arquivo no disco local (volume docker)
+        os.makedirs("evidencias", exist_ok=True) 
         extensao = file.filename.split(".")[-1]
         nome_arquivo = f"{uuid.uuid4()}.{extensao}"
         caminho_arquivo = f"evidencias/{nome_arquivo}"
@@ -96,12 +95,11 @@ class ExecucaoTesteService:
         with open(caminho_arquivo, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        url_publica = f"http://localhost:8000/{caminho_arquivo}" # Ajuste conforme seu domínio
+        url_publica = f"http://localhost:8000/{caminho_arquivo}" # Ajustar se for pra prod
         
-        # 4. Atualizar no Banco
+        # 4. Atualiza a lista no banco
         evidencias_lista.append(url_publica)
         
-        # Reaproveita seu método de update existente!
         dados_update = ExecucaoPassoUpdate(evidencias=json.dumps(evidencias_lista))
         await self.repo.update_passo(passo_id, dados_update)
         

@@ -15,8 +15,8 @@ class DashboardRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # Roda vários counts separados pra montar os "Big Numbers" (cards) do topo da tela.
     async def get_kpis_gerais(self):
-        # Executa contagens separadas para montar os cards
         queries = [
             select(func.count(Projeto.id)).where(Projeto.status == StatusProjetoEnum.ativo),
             select(func.count(CicloTeste.id)).where(CicloTeste.status == StatusCicloEnum.em_execucao),
@@ -36,8 +36,8 @@ class DashboardRepository:
             "total_defeitos_abertos": results[3]
         }
 
+    # Agrupa o status das execuções (passou/falhou) focando só no que tá rodando agora.
     async def get_status_execucao_geral(self):
-        # Agrupa execuções por status (Passou, Falhou, etc) apenas de ciclos ativos
         query = (
             select(ExecucaoTeste.status_geral, func.count(ExecucaoTeste.id))
             .join(CicloTeste)
@@ -47,8 +47,8 @@ class DashboardRepository:
         result = await self.db.execute(query)
         return result.all()
 
+    # Classifica os bugs pendentes por gravidade (Crítico, Alto, Médio).
     async def get_defeitos_por_severidade(self):
-        # Agrupa defeitos não-fechados por severidade
         query = (
             select(Defeito.severidade, func.count(Defeito.id))
             .where(Defeito.status != StatusDefeitoEnum.fechado)
@@ -57,8 +57,8 @@ class DashboardRepository:
         result = await self.db.execute(query)
         return result.all()
 
+    # Faz o caminho reverso (Defeito -> Projeto -> Módulo) pra achar os módulos mais problemáticos.
     async def get_modulos_com_mais_defeitos(self, limit: int = 5):
-        # Relaciona defeitos até o módulo para ver quais módulos têm mais problemas
         query = (
             select(Modulo.nome, func.count(Defeito.id))
             .select_from(Defeito)

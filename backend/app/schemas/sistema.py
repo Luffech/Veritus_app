@@ -2,21 +2,22 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 
-# Schema base com os campos comuns
+# Base com campos comuns. O Sistema é a raiz da árvore (Sistema -> Módulo -> Projeto).
 class SistemaBase(BaseModel):
     nome: str
     descricao: str | None = None
 
-# Schema para a criação de um novo Sistema (o que a API recebe)
+# Payload de entrada (POST).
 class SistemaCreate(SistemaBase):
     pass 
 
+# Payload de atualização (PUT/PATCH)
 class SistemaUpdate(BaseModel):
     nome: Optional[str] = None
     descricao: Optional[str] = None
     ativo: Optional[bool] = None
 
-# Schema para a resposta da API (o que a API devolve)
+# O que o front recebe. Vem com timestamps pra auditoria.
 class SistemaResponse(SistemaBase):
     id: int
     nome: str

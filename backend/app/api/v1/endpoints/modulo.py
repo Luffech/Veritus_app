@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence
-
-# Reutilizamos a dependência da sessão do banco de dados
 from .sistemas import get_db_session 
 from app.schemas import ModuloCreate, ModuloResponse, ModuloUpdate
 from app.services.modulo_service import ModuloService
 
+# Inicializa o roteador para os endpoints de gerenciamento de módulos.
 router = APIRouter()
 
-# Dependência para obter o serviço de Módulo
+# Função auxiliar que injeta o serviço de módulos pronto para uso com a sessão do banco.
 def get_modulo_service(db: AsyncSession = Depends(get_db_session)) -> ModuloService:
     return ModuloService(db)
 
+# Cria um novo módulo vinculado a um sistema e retorna os dados cadastrados.
 @router.post("/", response_model=ModuloResponse, status_code=status.HTTP_201_CREATED, summary="Criar um novo módulo")
 async def create_modulo(
     modulo: ModuloCreate,
@@ -20,12 +20,14 @@ async def create_modulo(
 ):
     return await service.create_modulo(modulo)
 
+# Retorna a lista completa de módulos cadastrados no banco de dados.
 @router.get("/", response_model=Sequence[ModuloResponse], summary="Listar todos os módulos")
 async def get_modulos(
     service: ModuloService = Depends(get_modulo_service)
 ):
     return await service.get_all_modulos()
 
+# Busca os detalhes de um módulo específico pelo ID, retornando erro se não existir.
 @router.get("/{modulo_id}", response_model=ModuloResponse, summary="Obter um módulo por ID")
 async def get_modulo(
     modulo_id: int,
@@ -36,6 +38,7 @@ async def get_modulo(
         raise HTTPException(status_code=404, detail="Módulo não encontrado")
     return db_modulo
 
+# Atualiza as informações de um módulo existente, validando se ele foi encontrado.
 @router.put("/{modulo_id}", response_model=ModuloResponse, summary="Atualizar um módulo")
 async def update_modulo(
     modulo_id: int,
@@ -47,6 +50,7 @@ async def update_modulo(
         raise HTTPException(status_code=404, detail="Módulo não encontrado")
     return updated_modulo
 
+# Remove permanentemente um módulo do sistema pelo seu identificador.
 @router.delete("/{modulo_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Apagar um módulo")
 async def delete_modulo(
     modulo_id: int,

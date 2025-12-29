@@ -9,7 +9,7 @@ export function AdminCiclos() {
   const [ciclos, setCiclos] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  const [view, setView] = useState('list'); // 'list' | 'form'
+  const [view, setView] = useState('list');
   const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({

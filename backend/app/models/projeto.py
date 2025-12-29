@@ -4,28 +4,37 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 
+# Define os status possíveis para controle do ciclo de vida do projeto.
 class StatusProjetoEnum(str, enum.Enum):
     ativo = "ativo"
     pausado = "pausado"
     finalizado = "finalizado"
 
+# Tabela central que amarra sistemas, módulos e usuários responsáveis.
 class Projeto(Base):
     __tablename__ = "projetos"
 
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String(255), nullable=False)
+    
+    # Foreign keys obrigatórias para garantir a hierarquia Sistema -> Módulo -> Projeto.
     modulo_id = Column(Integer, ForeignKey("modulos.id"), nullable=False)
     sistema_id = Column(Integer, ForeignKey("sistemas.id"), nullable=False)
     responsavel_id = Column(Integer, ForeignKey("usuarios.id"))
+    
     descricao = Column(Text)    
     status = Column(Enum(StatusProjetoEnum, name='status_projeto_enum', create_type=False), default=StatusProjetoEnum.ativo)    
+    
+    # Auditoria de criação e atualização.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relacionamentos
+    # Relacionamentos para navegação bidirecional no ORM.
     modulo = relationship("Modulo", back_populates="projetos")
     sistema = relationship("Sistema", back_populates="projetos")    
     responsavel = relationship("Usuario", back_populates="projetos_gerenciados")
+    
+    # Se deletar o projeto, apaga os ciclos filhos (cascade).
     ciclos = relationship("CicloTeste", back_populates="projeto", cascade="all, delete-orphan")    
     casos_teste = relationship("CasoTeste", back_populates="projeto")
     metricas = relationship("Metrica", back_populates="projeto")

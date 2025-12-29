@@ -12,11 +12,13 @@ class CasoTesteRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # Busca rápida para validações.
     async def get_by_nome_projeto(self, nome: str, projeto_id: int) -> Optional[CasoTeste]:
         query = select(CasoTeste).where(CasoTeste.nome == nome, CasoTeste.projeto_id == projeto_id)
         result = await self.db.execute(query)
         return result.scalars().first()
     
+    # Lista para a grid principal, carregando os passos e quem é o responsável.
     async def get_by_projeto(self, projeto_id: int) -> Sequence[CasoTeste]:
         query = (
             select(CasoTeste)
@@ -30,8 +32,9 @@ class CasoTesteRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
 
+    # Criação complexa: salva o caso, os passos e já cria a execução se o usuário pediu alocação.
     async def create(self, projeto_id: int, caso_data: CasoTesteCreate) -> CasoTeste:
-        # 1. Cria a "Receita" (Caso de Teste)
+        # 1. Cria a "Cabeça" do Caso de Teste
         db_caso = CasoTeste(
             projeto_id=projeto_id,
             **caso_data.model_dump(exclude={'passos', 'ciclo_id'}) 
@@ -39,17 +42,17 @@ class CasoTesteRepository:
         self.db.add(db_caso)
         await self.db.flush() 
 
-        # 2. Cria os Passos (Receita)
-        passos_objs = [] # Lista para guardar os objetos criados
+        # 2. Salva os Passos (Instruções do teste)
+        passos_objs = []
         if caso_data.passos:
             passos_objs = [
                 PassoCasoTeste(caso_teste_id=db_caso.id, **p.model_dump()) 
                 for p in caso_data.passos
             ]
             self.db.add_all(passos_objs)
-            await self.db.flush() # Importante: flush para gerar os IDs dos passos (p.id)
+            await self.db.flush() # Flush aqui é vital para ter os IDs dos passos logo abaixo
         
-        # 3. Alocação Automática (CORRIGIDA)
+        # 3. Lógica de Auto-Alocação: Se veio ciclo e responsável, já joga na esteira de execução.
         if caso_data.ciclo_id and caso_data.responsavel_id:
             nova_execucao = ExecucaoTeste(
                 ciclo_teste_id=caso_data.ciclo_id,
@@ -58,14 +61,14 @@ class CasoTesteRepository:
                 status_geral=StatusExecucaoEnum.pendente
             )
             self.db.add(nova_execucao)
-            await self.db.flush() # Gera o ID da execução
+            await self.db.flush() 
 
-            # --- AQUI ESTAVA A FALTA: Criação dos Passos da Execução ---
+            # Replica os passos da receita para a execução (snapshot para preencher resultado depois)
             if passos_objs:
                 passos_execucao = [
                     ExecucaoPasso(
                         execucao_teste_id=nova_execucao.id,
-                        passo_caso_teste_id=p.id, # Vincula ao passo original criado acima
+                        passo_caso_teste_id=p.id, # Link vital para saber de qual passo veio
                         status="pendente",
                         resultado_obtido=""
                     )
@@ -73,11 +76,12 @@ class CasoTesteRepository:
                 ]
                 self.db.add_all(passos_execucao)
 
-        # 4. Salva tudo
+        # 4. Efetiva tudo no banco de uma vez
         await self.db.commit()
         
         return await self.get_by_id(db_caso.id)
 
+    # Helper para buscar um caso único com todas as relações necessárias.
     async def get_by_id(self, caso_id: int) -> Optional[CasoTeste]:
         query = (
             select(CasoTeste)
@@ -90,21 +94,22 @@ class CasoTesteRepository:
         result = await self.db.execute(query)
         return result.scalars().first()
 
+    # Atualização inteligente: lida com edição de campos simples e sincronização da lista de passos.
     async def update(self, caso_id: int, dados: dict) -> Optional[CasoTeste]:
         passos_data = dados.pop('passos', None)
 
-        # 1. Atualiza campos simples
+        # 1. Update simples (nome, descrição, prioridade)
         if dados:
             await self.db.execute(
                 sqlalchemy_update(CasoTeste).where(CasoTeste.id == caso_id).values(**dados)
             )
 
-        # 2. Gestão Inteligente de Passos
+        # 2. Sincronização de Passos (Diff entre o que veio e o que tá no banco)
         if passos_data is not None:
-            # A. Identificar IDs que vieram no payload
+            # A. IDs que o frontend mandou manter/atualizar
             incoming_ids = [p['id'] for p in passos_data if 'id' in p and p['id']]
             
-            # B. Apagar passos que existem no banco mas NÃO vieram no payload
+            # B. Remove passos que existiam no banco mas sumiram da lista do front
             if incoming_ids:
                 await self.db.execute(
                     delete(PassoCasoTeste)
@@ -112,12 +117,11 @@ class CasoTesteRepository:
                     .where(PassoCasoTeste.id.notin_(incoming_ids))
                 )
             else:
-                # Se não veio nenhum ID e a lista não é vazia, talvez sejam todos novos. 
-                # Se a lista for vazia [], apaga tudo.
+                # Se a lista não tem IDs, ou são todos novos ou o usuário limpou tudo.
                 if not passos_data: 
                      await self.db.execute(delete(PassoCasoTeste).where(PassoCasoTeste.caso_teste_id == caso_id))
 
-            # C. Atualizar ou Criar
+            # C. Atualiza existentes ou Insere novos
             for passo in passos_data:
                 if 'id' in passo and passo['id']:
                     await self.db.execute(
@@ -134,15 +138,16 @@ class CasoTesteRepository:
                     ))
 
         await self.db.commit()
-        self.db.expire_all()
+        self.db.expire_all() # Força o reload dos dados atualizados
         return await self.get_by_id(caso_id)
 
+    # Exclusão profunda: limpa execuções, passos e defeitos vinculados antes de matar o caso.
     async def delete(self, caso_id: int) -> bool:
-        # Cascade manual para garantir limpeza
         execs = await self.db.execute(select(ExecucaoTeste.id).where(ExecucaoTeste.caso_teste_id == caso_id))
         execs_ids = execs.scalars().all()
 
         if execs_ids:
+            # Limpeza em cascata manual (pra garantir que o SQLAlchemy não reclame de FK)
             await self.db.execute(delete(ExecucaoPasso).where(ExecucaoPasso.execucao_teste_id.in_(execs_ids)))
             await self.db.execute(delete(Defeito).where(Defeito.execucao_teste_id.in_(execs_ids)))
             await self.db.execute(delete(ExecucaoTeste).where(ExecucaoTeste.id.in_(execs_ids)))

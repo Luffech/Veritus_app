@@ -5,31 +5,30 @@ from app.core.config import settings
 from app.api.v1.api import api_router
 import os
 
+# Garante que a pasta de evidências exista ao iniciar.
 os.makedirs("evidencias", exist_ok=True)
-# Cria a aplicação FastAPI
+
+# Inicializa a aplicação FastAPI com título e configurações de versão.
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# Configuração do CORS (Cross-Origin Resource Sharing)
-# Permite que o seu frontend (a correr em localhost:3000, etc.)
-# comunique com o backend.
+# Configura o CORS para permitir requisições de qualquer origem.
 app.add_middleware(
     CORSMiddleware,
-    # MUDANÇA AQUI: ["*"] libera para qualquer site (Vercel, Localhost, etc)
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Inclui o roteador principal da v1, prefixando todas as suas rotas com /api/v1
+# Monta o diretório de arquivos estáticos e inclui as rotas da API.
 app.mount("/evidencias", StaticFiles(directory="evidencias"), name="evidencias")
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Adiciona os endpoints básicos que você já tinha
+# Endpoints básicos para verificação de saúde e conectividade da API.
 @app.get("/", summary="Endpoint raiz da API")
 def read_root():
     return {"message": "Backend conectado ao banco de dados gerenciado pelo Docker!"}
