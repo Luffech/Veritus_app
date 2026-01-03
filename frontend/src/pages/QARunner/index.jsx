@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { api } from '../../services/api';
+
+
 import { ConfirmationModal } from '../../components/ConfirmationModal';
 import { DefectModal } from '../../components/DefectModal';
-import './styles.css';
+import { TaskSidebar } from './TaskSidebar';
+import { ExecutionPlayer } from './ExecutionPlayer';
+import { EvidenceGallery } from './EvidenceGallery';
+import styles from './styles.module.css';
 
 export function QARunner() {
   const [tarefas, setTarefas] = useState([]);
@@ -12,7 +17,6 @@ export function QARunner() {
   const [galleryImages, setGalleryImages] = useState(null);
   const [currentFailedStep, setCurrentFailedStep] = useState(null);
   const [isDefectModalOpen, setIsDefectModalOpen] = useState(false);
-
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false, title: '', message: '', onConfirm: () => {}, isDanger: false
   });
@@ -36,6 +40,7 @@ export function QARunner() {
       try {
           const data = await api.get(`/testes/execucoes/${t.id}`);
           setActiveExecucao(data);
+          
           if (data.status_geral === 'pendente') {
               await api.put(`/testes/execucoes/${t.id}/finalizar?status=em_progresso`);
               setTarefas(prev => prev.map(task => 
@@ -45,7 +50,6 @@ export function QARunner() {
           }
       } catch (e) { toast.error("Erro ao carregar execução."); }
   };
-
   const handleStepAction = (passoId, acao) => {
       if (acao === 'aprovado') {
           updatePasso(passoId, 'aprovado');
@@ -90,13 +94,6 @@ export function QARunner() {
       } catch (error) { toast.error("Erro ao finalizar execução."); }
   };
 
-  const getEvidencias = (evidenciaString) => {
-      try {
-          const parsed = JSON.parse(evidenciaString);
-          return Array.isArray(parsed) ? parsed : [];
-      } catch { return []; }
-  };
-
   const handleFileUpload = async (e, passoId) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -132,8 +129,11 @@ export function QARunner() {
 
   const confirmDeleteEvidence = async (passoId, urlToDelete) => {
       try {
+          const getEvidencias = (str) => { try { return JSON.parse(str); } catch { return []; } };
+          
           const passo = activeExecucao.passos_executados.find(p => p.id === passoId);
-          const listaAtual = getEvidencias(passo.evidencias);
+          const listaAtual = Array.isArray(passo.evidencias) ? passo.evidencias : getEvidencias(passo.evidencias);
+          
           const novaLista = listaAtual.filter(url => url !== urlToDelete);
           const novoJSON = JSON.stringify(novaLista);
 
@@ -177,86 +177,28 @@ export function QARunner() {
 
       <h2 className="section-title">Minhas Tarefas</h2>
       
-      <div className="qa-runner-container">
-          <div className="task-sidebar">
-              {loading ? <p>Carregando...</p> : (
-                  tarefas.length === 0 ? <div className="card muted">Sem tarefas.</div> : (
-                      tarefas.map(t => (
-                          <div key={t.id} onClick={() => selectTask(t)} className={`task-card status-${t.status_geral} ${activeExecucao?.id === t.id ? 'active' : ''}`}>
-                              <div className="task-header"><h4 className="task-title">{t.caso_teste?.nome}</h4><span className="task-badge">{t.status_geral}</span></div>
-                              <small className="task-project">Projeto: {t.ciclo_teste?.projeto_id || 'N/A'}</small>
-                          </div>
-                      ))
-                  )
-              )}
-          </div>
+      <div className={styles.container}>
+          <TaskSidebar 
+              tasks={tarefas} 
+              loading={loading} 
+              activeExecId={activeExecucao?.id} 
+              onSelect={selectTask} 
+          />
 
-          <div className="test-player-area">
-              {activeExecucao ? (
-                  <div className="player-card">
-                      <div className="execution-header">
-                          <div><h2 className="execution-title">{activeExecucao.caso_teste.nome}</h2><span className="execution-desc">{activeExecucao.caso_teste.descricao}</span></div>
-                          {['passou', 'falhou'].indexOf(activeExecucao.status_geral) === -1 && (
-                             <button onClick={requestFinishExecution} className="btn primary">Finalizar Teste</button>
-                          )}
-                      </div>
-
-                      <div className="steps-list">
-                        {Array.isArray(activeExecucao.passos_executados) && activeExecucao.passos_executados.length > 0 ? (
-                            [...activeExecucao.passos_executados].sort((a, b) => (a.passo_template?.ordem || 0) - (b.passo_template?.ordem || 0)).map((p) => {
-                                    const evidenciasList = getEvidencias(p.evidencias);
-                                    const template = p.passo_template || { acao: "Erro", resultado_esperado: "---", ordem: 0 };
-                                    return (
-                                        <div key={p.id} className={`step-item ${p.status}`}>
-                                            <div className="step-number">#{template.ordem}</div>
-                                            <div>
-                                                <div className="step-action">{template.acao}</div>
-                                                <div className="step-expected"><strong>Esperado:</strong> {template.resultado_esperado}</div>
-                                                <div className="evidence-area">
-                                                    {evidenciasList.length < 3 && (
-                                                        <label className="btn-upload"><span>📷</span> Anexar
-                                                            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, p.id)} />
-                                                        </label>
-                                                    )}
-                                                    {evidenciasList.map((url, idx) => (
-                                                        <div key={idx} className="evidence-chip">
-                                                            <span className="evidence-link" onClick={() => setGalleryImages(evidenciasList)}>Imagem {idx + 1}</span>
-                                                            <button className="delete-btn" onClick={(e) => { e.stopPropagation(); requestDeleteEvidence(p.id, url); }}>✕</button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="step-actions-col">
-                                                <button onClick={() => handleStepAction(p.id, 'aprovado')} className="btn btn-approve" disabled={p.status === 'aprovado'} style={{ opacity: p.status === 'aprovado' ? 0.5 : 1 }}>
-                                                    {p.status === 'aprovado' ? 'Aprovado' : 'Aprovar'}
-                                                </button>
-                                                <button onClick={() => handleStepAction(p.id, 'reprovado')} className="btn btn-reject" disabled={p.status === 'reprovado'} style={{ opacity: p.status === 'reprovado' ? 0.5 : 1 }}>
-                                                    {p.status === 'reprovado' ? 'Falhou' : 'Falhar'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                        ) : <div className="empty-state">Nenhum passo encontrado.</div>}
-                      </div>
-                  </div>
-              ) : <div className="empty-state">Selecione uma tarefa para iniciar</div>}
-          </div>
+          <ExecutionPlayer 
+              execution={activeExecucao}
+              onFinish={requestFinishExecution}
+              onStepAction={handleStepAction}
+              onUpload={handleFileUpload}
+              onDeleteEvidence={requestDeleteEvidence}
+              onViewGallery={setGalleryImages}
+          />
       </div>
 
-      {galleryImages && (
-          <div className="gallery-overlay" onClick={() => setGalleryImages(null)}>
-              <div className="gallery-track">
-                  {galleryImages.map((url, idx) => (
-                      <div key={idx} className="gallery-item">
-                          <img src={url} alt={`Evidência ${idx+1}`} className="gallery-img" onClick={(e) => e.stopPropagation()} />
-                          <div style={{marginTop:'15px', fontSize:'1.2rem'}}>Imagem {idx + 1}</div>
-                      </div>
-                  ))}
-              </div>
-              <button className="btn" style={{marginTop:'20px', background:'white', color:'black'}} onClick={() => setGalleryImages(null)}>Fechar Galeria</button>
-          </div>
-      )}
+      <EvidenceGallery 
+          images={galleryImages} 
+          onClose={() => setGalleryImages(null)} 
+      />
     </main>
   );
 }

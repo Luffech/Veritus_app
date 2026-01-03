@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import './styles.css';
+import styles from './styles.module.css';
 
 export function Login() {
   const navigate = useNavigate();
@@ -40,8 +40,7 @@ export function Login() {
       });
       
       const data = response; 
-
-      if (!data.role) data.role = username.toLowerCase().includes("admin") ? "admin" : "user";
+      if (!data.role) data.role = "user";
       if (!data.username) data.username = username;
 
       login(data);
@@ -61,12 +60,12 @@ export function Login() {
   };
 
   return (
-    <div className="page-login-wrapper">
-      <main className="container narrow">
-        <section className="login-card">
-          <h1 className="login-section-title">Login</h1>
+    <div className={styles.wrapper}>
+      <main className={`${styles.container} ${styles.loginContainer}`}>
+        <section className={styles.card}>
+          <h1 className={styles.title}>Login</h1>
 
-          <form onSubmit={handleSubmit} className="login-form-grid">
+          <form onSubmit={handleSubmit} className={styles.form}>
             <div>
               <input 
                 type="text" 
@@ -75,6 +74,7 @@ export function Login() {
                 value={username} 
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Usuário" 
+                className={styles.input}
               />
             </div>
             <div>
@@ -85,11 +85,12 @@ export function Login() {
                 value={password} 
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Senha" 
+                className={styles.input}
               />
             </div>
             
             <div style={{ gridColumn: '1/-1' }}>
-              <button type="submit" className="login-btn primary" disabled={loading}>
+              <button type="submit" className={styles.button} disabled={loading}>
                 {loading ? 'Entrando...' : 'Entrar'}
               </button>
             </div>
@@ -97,12 +98,12 @@ export function Login() {
         </section>
       </main>
 
-      <div className="image-half">
-        <img src="/logoveritus-login.png" alt="Veritus" className="right-half-image" />
+      <div className={styles.imageHalf}>
+        <img src="/logoveritus-login.png" alt="Veritus" className={styles.rightHalfImage} />
       </div>
 
       {error && (
-        <div className="snackbar snackbar-error">
+        <div className={styles.snackbar}>
           {error}
         </div>
       )}
