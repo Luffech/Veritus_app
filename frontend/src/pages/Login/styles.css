@@ -7,7 +7,7 @@ body {
     min-height: 100vh;
 }
 
-/* === Ajuste para React: Wrapper da página de Login === */
+
 .page-login-wrapper {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -40,8 +40,8 @@ body {
     align-items: center;
     flex-direction: column;
     grid-column: 1/2;
-
 }
+
 .container.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 
 .image-half {
@@ -58,13 +58,8 @@ body {
 }
 
 @keyframes imagePop {
-    0%, 100% {
-        transform: scale(1);
-    }
-    
-    50% {
-        transform: scale(1.2);
-    }
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
 }
 
 .login-card {
@@ -135,83 +130,27 @@ body {
 }
 
 @keyframes slideUpFade {
-    from {
-        opacity: 0;
-        transform: translate(-50%, 20px);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
+    from { opacity: 0; transform: translate(-50%, 20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 @media (max-width: 1024px) {
-    .page-login-wrapper {
-        grid-template-columns: 1fr;
-    }
-
-    .container.narrow {
-        position: static;
-        width: 100%;
-        grid-column: 1 / -1;
-        top: auto;
-        transform: none;
-    }
-
-    .image-half {
-        display: none;
-    }
-
-    .login-card {
-        width: 90%;
-        max-width: 450px;
-        margin: 40px auto;
-    }
+    .page-login-wrapper { grid-template-columns: 1fr; }
+    .container.narrow { position: static; width: 100%; grid-column: 1 / -1; top: auto; transform: none; }
+    .image-half { display: none; }
+    .login-card { width: 90%; max-width: 450px; margin: 40px auto; }
 }
 
-/* Mobile */
 @media (max-width: 768px) {
-    body {
-        font-size: 14px;
-    }
-
-    .page-login-wrapper {
-        min-height: 100dvh;
-        padding: 20px;
-    }
-
-    .container {
-        padding: 10px;
-    }
-
-    .login-card {
-        width: 100%;
-        height: auto;
-        padding: 20px;
-        margin: 20px auto;
-    }
-
-    .login-form-grid input,
-    .login-btn {
-        width: 100%;
-    }
-
-    .login-section-title {
-        font-size: 1.2rem;
-        margin-bottom: 30px;
-    }
+    body { font-size: 14px; }
+    .page-login-wrapper { min-height: 100dvh; padding: 20px; }
+    .container { padding: 10px; }
+    .login-card { width: 100%; height: auto; padding: 20px; margin: 20px auto; }
+    .login-form-grid input, .login-btn { width: 100%; }
+    .login-section-title { font-size: 1.2rem; margin-bottom: 30px; }
 }
 
-/* Very small screens */
 @media (max-width: 480px) {
-    .login-card {
-        width: 70%;
-        margin-left: 5%;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.8);
-    }
-
-    .page-login-wrapper .brand-logo {
-        width: 100px;
-    }
+    .login-card { width: 70%; margin-left: 5%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+    .page-login-wrapper .brand-logo { width: 100px; }
 }
