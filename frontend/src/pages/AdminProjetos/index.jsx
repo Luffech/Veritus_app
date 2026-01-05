@@ -4,16 +4,14 @@ import { api } from '../../services/api';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
 import './styles.css';
 
-// Componente Reutilizável
+// Componente Reutilizável (Mantido igual)
 const SearchableSelect = ({ options, value, onChange, placeholder, disabled, labelKey = 'nome' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef(null);
 
-  // Helper para cortar o texto apenas na visualização da lista
   const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
 
-  // Sincroniza o texto do input quando o valor muda externamente
   useEffect(() => {
     const selectedOption = options.find(opt => String(opt.id) === String(value));
     if (selectedOption) {
@@ -22,7 +20,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, lab
       setSearchTerm('');
     }
   }, [value, options, labelKey]);
-  // Fecha o dropdown ao clicar fora
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -248,12 +246,12 @@ export function AdminProjetos() {
     ? modulos.filter(m => m.sistema_id == form.sistema_id)
     : modulos;
 
-  const admins = usuarios.filter(u => u.nivel_acesso_id === 1 && u.ativo);
-
-  const getResponsavelName = (id) => {
-      const user = usuarios.find(u => u.id === id);
-      return user ? user.nome : '-';
-  };
+  const admins = usuarios
+    .filter(u => u.nivel_acesso_id === 1 && u.ativo)
+    .map(u => ({
+        ...u,
+        labelCompleto: `${u.nome} ${u.username ? `(#${u.username})` : ''}`
+    }));
 
   return (
     <main className="container">
@@ -324,7 +322,7 @@ export function AdminProjetos() {
                             value={form.responsavel_id}
                             onChange={(val) => setForm({ ...form, responsavel_id: val })}
                             placeholder="Busque o responsável..."
-                            labelKey="nome"
+                            labelKey="labelCompleto" 
                         />
                       </div>
 
@@ -356,7 +354,8 @@ export function AdminProjetos() {
            <div className="toolbar">
                <h3 className="page-title">Projetos</h3>
                <div className="toolbar-actions">
-                   
+                   <button onClick={() => setView('form')} className="btn primary btn-new">Novo Projeto</button>
+                   <div className="separator"></div>
                    <div ref={wrapperRef} className="search-wrapper">
                         <input 
                             type="text" 
@@ -388,9 +387,7 @@ export function AdminProjetos() {
                                 )}
                             </ul>
                         )}
-                   </div>
-
-                   <button onClick={() => setView('form')} className="btn primary btn-new">Novo Projeto</button>
+                   </div>                  
                </div>
            </div>
 
@@ -420,9 +417,26 @@ export function AdminProjetos() {
                                 <td className="cell-name">{item.nome}</td>
                                 <td style={{color:'#64748b'}}>{truncate(item.descricao, 30)}</td>
                                 
+                                {/* --- COLUNA MODIFICADA --- */}
                                 <td style={{fontSize: '0.85rem'}}>
-                                   {item.responsavel?.nome || getResponsavelName(item.responsavel_id)}
+                                    {(() => {
+                                        const resp = usuarios.find(u => u.id === item.responsavel_id);
+                                        if (resp) {
+                                            return (
+                                                <div>
+                                                    <span>{resp.nome}</span>
+                                                    {resp.username && (
+                                                        <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>
+                                                            (#{resp.username})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        }
+                                        return '-';
+                                    })()}
                                 </td>
+                                {/* ------------------------- */}
 
                                 <td className="cell-status">
                                     <span className={`status-badge ${item.status}`}>{item.status}</span>

@@ -93,3 +93,46 @@ table {
   border-color: #e2e8f0;
   color: #cbd5e1;
 }
+
+.search-wrapper {
+  position: relative; /* Mantém a lista alinhada ao input */
+  width: 220px;
+}
+
+.dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  margin-top: 4px;
+  padding: 0;
+  list-style: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 100; /* Garante que fique por cima de tudo */
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: #334155;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.2s;
+  white-space: nowrap; /* Evita quebra de linha se o texto for curto */
+  overflow: hidden;    /* Esconde o que passar */
+  text-overflow: ellipsis; /* Adiciona ... se o navegador cortar */
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f8fafc;
+  color: #001C42;
+}

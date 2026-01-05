@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { api } from '../../services/api';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
@@ -10,7 +10,11 @@ export function AdminUsers() {
   const [view, setView] = useState('list');
   const [editingId, setEditingId] = useState(null);
   
-  // CONFIGURAÇÃO DA PAGINAÇÃO
+  // --- ESTADOS DA BUSCA (DROPDOWN) ---
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef(null);
+
+  // --- CONFIGURAÇÃO DA PAGINAÇÃO ---
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -28,13 +32,22 @@ export function AdminUsers() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Carrega dados ao abrir a tela
   useEffect(() => { loadData(); }, []);
 
-  // Reseta para a página 1 sempre que o usuário pesquisar algo novo
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  // Fecha o dropdown se clicar fora
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -44,7 +57,6 @@ export function AdminUsers() {
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error("Erro ao carregar usuários.");
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -70,40 +82,28 @@ export function AdminUsers() {
   };
 
   const handleToggleStatus = () => {
-    // Busca o usuário logado no localStorage
     const storedUser = localStorage.getItem('user');
     const loggedUser = storedUser ? JSON.parse(storedUser) : {};
 
-    // Se o usuário estiver tentando INATIVAR (form.ativo === true)
-    // E o ID sendo editado for o mesmo do usuário logado
     if (editingId === loggedUser.id && form.ativo === true) {
         return toast.error("Você não pode inativar seu próprio usuário!");
     }
-
-    // Se passou na validação, inverte o status
     setForm({ ...form, ativo: !form.ativo });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validações
     if (!form.nome.trim() || !form.email.trim()) return toast.warning("Nome e Email são obrigatórios.");
     if (!editingId && !form.senha) return toast.warning("Senha é obrigatória para novos usuários.");
 
-    // Verifica duplicidade de Username
     if (form.username && form.username.trim() !== '') {
         const usernameExists = users.some(u => 
-            u.username?.toLowerCase() === form.username.trim().toLowerCase() && 
-            u.id !== editingId 
+            u.username?.toLowerCase() === form.username.trim().toLowerCase() && u.id !== editingId 
         );
         if (usernameExists) return toast.warning(`O username "${form.username}" já está em uso.`);
     }
-
-    // Verifica duplicidade de Email
     const emailExists = users.some(u => 
-        u.email.toLowerCase() === form.email.trim().toLowerCase() && 
-        u.id !== editingId 
+        u.email.toLowerCase() === form.email.trim().toLowerCase() && u.id !== editingId 
     );
     if (emailExists) return toast.warning(`O email "${form.email}" já está cadastrado.`);
 
@@ -122,7 +122,6 @@ export function AdminUsers() {
       handleReset();
       loadData();
     } catch (error) {
-      console.error(error);
       const msg = error.response?.data?.detail || "Erro ao salvar usuário.";
       toast.error(typeof msg === 'string' ? msg : "Erro ao salvar.");
     }
@@ -142,6 +141,7 @@ export function AdminUsers() {
     }
   };
 
+  // --- LÓGICA DE FILTRO DA TABELA ---
   const filteredUsers = users.filter(u => {
     const term = searchTerm.toLowerCase();
     const matchName = (u.nome || '').toLowerCase().includes(term);
@@ -150,11 +150,18 @@ export function AdminUsers() {
     return matchName || matchEmail || matchUsername;
   });
 
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  // --- LÓGICA PARA O DROPDOWN (Sugestões) ---
+  const truncate = (str, n = 25) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
 
-  if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(1);
-  }
+  // Se o input estiver vazio, pega os ÚLTIMOS 5 (ordenados por ID decrescente)
+  // Se tiver texto, pega os 5 primeiros que batem com a busca
+  const dropdownOptions = searchTerm === '' 
+    ? [...users].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : filteredUsers.slice(0, 5);
+
+  // --- PAGINAÇÃO ---
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -166,11 +173,9 @@ export function AdminUsers() {
     const maxButtons = 5;
     let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
     let end = Math.min(totalPages, start + maxButtons - 1);
-
     if (end - start + 1 < maxButtons) {
         start = Math.max(1, end - maxButtons + 1);
     }
-
     const pages = [];
     for (let i = start; i <= end; i++) {
         pages.push(i);
@@ -196,7 +201,6 @@ export function AdminUsers() {
               <div className="form-header">
                  <h3 className="form-title">{editingId ? 'Editar Usuário' : 'Novo Usuário'}</h3>
               </div>
-              
               <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                   <div className="form-grid">
                     <div>
@@ -208,12 +212,10 @@ export function AdminUsers() {
                         <input value={form.username} onChange={e => setForm({...form, username: e.target.value})} className="form-control" placeholder="Ex: joao.qa" />
                     </div>
                   </div>
-
                   <div>
                     <label className="input-label">Email <span className="required-asterisk">*</span></label>
                     <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="form-control" />
                   </div>
-
                   <div className="form-grid">
                     <div>
                         <label className="input-label">{editingId ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
@@ -228,7 +230,6 @@ export function AdminUsers() {
                     </div>
                   </div>
               </div>
-
               <div className="form-actions">
                   <button 
                     type="button" 
@@ -238,7 +239,6 @@ export function AdminUsers() {
                   >
                     {form.ativo ? 'Inativar Usuário' : 'Ativar Usuário'}
                   </button>
-
                   <button type="button" onClick={handleReset} className="btn">Cancelar</button>
                   <button type="submit" className="btn primary">Salvar</button>
               </div>
@@ -252,21 +252,46 @@ export function AdminUsers() {
            <div className="toolbar">
                <h3 className="page-title">Usuários</h3>
                <div className="toolbar-actions">
-                   <div className="search-wrapper">
+                   
+                   {/* --- BUSCA COM DROPDOWN INTELIGENTE --- */}
+                   <div className="search-wrapper" ref={searchRef}>
                         <input 
-                            type="text" placeholder="Buscar..." value={searchTerm}
+                            type="text" 
+                            placeholder="Buscar..." 
+                            value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onFocus={() => setShowDropdown(true)}
                             className="search-input"
                         />
                         <span className="search-icon">🔍</span>
+
+                        {/* Agora renderiza se showDropdown for true e tiver opções, removida a trava de searchTerm */}
+                        {showDropdown && dropdownOptions.length > 0 && (
+                            <ul className="dropdown-list">
+                                {dropdownOptions.map((u) => (
+                                    <li 
+                                        key={u.id} 
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                            // Ao clicar, preenche o input com o nome do usuário
+                                            setSearchTerm(u.nome || u.username);
+                                            setShowDropdown(false);
+                                        }}
+                                    >
+                                        {/* Corta o texto em 25 chars */}
+                                        {truncate(u.nome || u.username, 25)}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                    </div>
+
                    <button onClick={() => setView('form')} className="btn primary btn-new">Novo Usuário</button>
                </div>
            </div>
 
            {loading ? <div className="loading-text">Carregando...</div> : (
              <div className="table-wrap">
-
                <div className="content-area">
                    {filteredUsers.length === 0 ? (
                      <div className="empty-container">Nenhum usuário encontrado para "{searchTerm}"</div>
@@ -345,7 +370,6 @@ export function AdminUsers() {
                   <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Próxima">›</button>
                   <button onClick={() => paginate(totalPages)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Última">»</button>
                </div>
-               
              </div>
            )}
         </section>
