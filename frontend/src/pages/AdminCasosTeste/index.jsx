@@ -105,6 +105,7 @@ export function AdminCasosTeste() {
       passos: [{ ordem: 1, acao: '', resultado_esperado: '' }]
     });
     setEditingId(null);
+    setSearchTerm('');
     setView('list');
   };
 
@@ -193,6 +194,30 @@ export function AdminCasosTeste() {
       }
   };
 
+  const handleImportarModelo = (casoId) => {
+    const casoOrigem = casos.find(c => c.id === casoId);
+    
+    if (casoOrigem) {
+      setForm(prev => ({
+        ...prev,
+        nome: `${casoOrigem.nome} (Cópia)`,
+        descricao: casoOrigem.descricao || '',
+        pre_condicoes: casoOrigem.pre_condicoes || '',
+        criterios_aceitacao: casoOrigem.criterios_aceitacao || '',
+        prioridade: casoOrigem.prioridade,
+        passos: casoOrigem.passos && casoOrigem.passos.length > 0 
+          ? casoOrigem.passos.map((p, index) => ({
+              ordem: index + 1,
+              acao: p.acao,
+              resultado_esperado: p.resultado_esperado
+            }))
+          : [{ ordem: 1, acao: '', resultado_esperado: '' }]
+      }));
+      setSearchTerm('');
+      toast.success("Dados do modelo importados!");
+    }
+  };
+
   return (
     <main className="container">
       <ConfirmationModal 
@@ -211,8 +236,41 @@ export function AdminCasosTeste() {
             
             <section className="card form-section">
               <div className="form-header">
-                 <h3 className="form-title">{editingId ? 'Editar Cenário' : 'Novo Cenário'}</h3>
-              </div>
+                <h3 className="form-title">{editingId ? 'Editar Cenário' : 'Novo Cenário'}</h3>
+
+                {!editingId && (
+                    <div ref={wrapperRef} className="search-wrapper" style={{ marginLeft: 'auto', width: '300px' }}>
+                        <input 
+                            type="text" 
+                            placeholder="Buscar modelo..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)} 
+                            onFocus={() => setShowSuggestions(true)}
+                            className="search-input"
+                        />
+                        <span className="search-icon">🔍</span>
+                        
+                        {showSuggestions && (
+                            <ul className="custom-dropdown">
+                                {opcoesParaMostrar.length === 0 ? (
+                                    <li style={{ color: '#999', cursor: 'default' }}>Nenhum modelo encontrado.</li>
+                                ) : (
+                                    opcoesParaMostrar.map(c => (
+                                        <li key={c.id} onClick={() => { handleImportarModelo(c.id); setShowSuggestions(false); }}>
+                                            <div style={{ fontWeight: 600, color: '#334155' }}>
+                                                {truncate(c.nome, 20)}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                                                | {c.prioridade} | {c.passos?.length || 0} passos
+                                            </div>
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+                        )}
+                    </div>
+                )}
+            </div>
               <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                   <div>
                     <label className="input-label">Título do Cenário <span className="required-asterisk">*</span></label>
