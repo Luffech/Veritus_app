@@ -10,11 +10,11 @@ export function AdminUsers() {
   const [view, setView] = useState('list');
   const [editingId, setEditingId] = useState(null);
   
-  // --- ESTADOS DA BUSCA (DROPDOWN) ---
+  // ESTADOS DA BUSCA (DROPDOWN)
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef(null);
 
-  // --- CONFIGURAÇÃO DA PAGINAÇÃO ---
+  // CONFIGURAÇÃO DA PAGINAÇÃO
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -141,7 +141,7 @@ export function AdminUsers() {
     }
   };
 
-  // --- LÓGICA DE FILTRO DA TABELA ---
+  // LÓGICA DE FILTRO DA TABELA
   const filteredUsers = users.filter(u => {
     const term = searchTerm.toLowerCase();
     const matchName = (u.nome || '').toLowerCase().includes(term);
@@ -150,7 +150,6 @@ export function AdminUsers() {
     return matchName || matchEmail || matchUsername;
   });
 
-  // --- LÓGICA PARA O DROPDOWN (Sugestões) ---
   const truncate = (str, n = 25) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
 
   // Se o input estiver vazio, pega os ÚLTIMOS 5 (ordenados por ID decrescente)
@@ -159,7 +158,7 @@ export function AdminUsers() {
     ? [...users].sort((a, b) => b.id - a.id).slice(0, 5) 
     : filteredUsers.slice(0, 5);
 
-  // --- PAGINAÇÃO ---
+  // PAGINAÇÃO
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
 
@@ -252,8 +251,6 @@ export function AdminUsers() {
            <div className="toolbar">
                <h3 className="page-title">Usuários</h3>
                <div className="toolbar-actions">
-                   
-                   {/* --- BUSCA COM DROPDOWN INTELIGENTE --- */}
                    <div className="search-wrapper" ref={searchRef}>
                         <input 
                             type="text" 
@@ -264,8 +261,6 @@ export function AdminUsers() {
                             className="search-input"
                         />
                         <span className="search-icon">🔍</span>
-
-                        {/* Agora renderiza se showDropdown for true e tiver opções, removida a trava de searchTerm */}
                         {showDropdown && dropdownOptions.length > 0 && (
                             <ul className="dropdown-list">
                                 {dropdownOptions.map((u) => (
@@ -273,12 +268,10 @@ export function AdminUsers() {
                                         key={u.id} 
                                         className="dropdown-item"
                                         onClick={() => {
-                                            // Ao clicar, preenche o input com o nome do usuário
                                             setSearchTerm(u.nome || u.username);
                                             setShowDropdown(false);
                                         }}
                                     >
-                                        {/* Corta o texto em 25 chars */}
                                         {truncate(u.nome || u.username, 25)}
                                     </li>
                                 ))}

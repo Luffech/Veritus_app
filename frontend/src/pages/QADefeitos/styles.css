@@ -41,3 +41,57 @@
 .gallery-track { display: flex; gap: 20px; overflow-x: auto; max-width: 90%; padding: 20px; }
 .gallery-item { text-align: center; color: white; }
 .gallery-img { max-height: 80vh; border: 2px solid white; border-radius: 8px; cursor: default; }
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px; 
+  margin-top: auto; 
+  margin-bottom: 1%;
+  padding-top: 15px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pagination-btn {
+  min-width: 32px; 
+  height: 32px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.pagination-btn.active {
+  background-color: #001C42;
+  color: #ffffff;
+  border-color: #001C42;
+}
+
+.pagination-btn.nav-btn {
+  font-size: 1.1rem; 
+  font-weight: bold;
+  background-color: #f1f5f9;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #cbd5e1;
+}

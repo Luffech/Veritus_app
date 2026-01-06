@@ -17,17 +17,18 @@ export function AdminSistemas() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
 
-  const opcoesParaMostrar = searchTerm === '' 
-    ? [...sistemas].sort((a, b) => b.id - a.id).slice(0, 5) 
-    : sistemas.filter(s => s.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
-
-  const filteredSistemas = sistemas.filter(s => 
-      s.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // CONFIGURAÇÃO DA PAGINAÇÃO
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const truncate = (str, n = 40) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
 
   useEffect(() => { loadSistemas(); }, []);
+
+  // Reseta paginação ao pesquisar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -113,6 +114,42 @@ export function AdminSistemas() {
       }
   };
 
+  // LÓGICA DE FILTRO
+  const filteredSistemas = sistemas.filter(s => 
+      s.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // SUGESTÕES DROPDOWN
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...sistemas].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : filteredSistemas.slice(0, 5);
+
+  // PAGINAÇÃO
+  const totalPages = Math.ceil(filteredSistemas.length / itemsPerPage);
+  
+  if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  // IMPORTANTE: Fatia para a tabela
+  const currentSistemas = filteredSistemas.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const getPaginationGroup = () => {
+    const maxButtons = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+        start = Math.max(1, end - maxButtons + 1);
+    }
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
+  };
+
   return (
     <main className="container grid">
       <ConfirmationModal 
@@ -171,39 +208,66 @@ export function AdminSistemas() {
         </div>
 
         <div className="table-wrap">
-            {loading ? <p style={{padding:'20px', textAlign:'center'}}>Carregando...</p> : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th style={{textAlign: 'left'}}>Nome</th>
-                            <th style={{textAlign: 'right'}}>Status</th>
-                            <th style={{textAlign: 'right'}}>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredSistemas.length === 0 ? (
-                            <tr><td colSpan="3" className="no-results">Nenhum sistema encontrado.</td></tr>
-                        ) : (
-                            filteredSistemas.map(s => (
-                                <tr key={s.id} onClick={() => handleSelectRow(s)} className={editingId === s.id ? 'selected' : 'selectable'} style={{opacity: s.ativo ? 1 : 0.6}}>
-                                    <td className="cell-name">
-                                        <strong title={s.nome}>{truncate(s.nome)}</strong>
-                                        <div title={s.descricao}>{truncate(s.descricao, 40)}</div>
-                                    </td>
-                                    <td style={{textAlign: 'right', whiteSpace: 'nowrap'}}>
-                                        <span onClick={(e) => { e.stopPropagation(); toggleActive(s); }} className={`badge ${s.ativo ? 'on' : 'off'}`}>
-                                            {s.ativo ? 'Ativo' : 'Inativo'}
-                                        </span>
-                                    </td>
-                                    <td className="cell-actions">
-                                        <button onClick={(e) => { e.stopPropagation(); requestDelete(s); }} className="btn danger small">🗑️</button>
-                                    </td>
+            <div className="content-area">
+                {loading ? <p style={{padding:'20px', textAlign:'center'}}>Carregando...</p> : (
+                    sistemas.length === 0 ? <p className="no-results">Nenhum sistema cadastrado.</p> : (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style={{textAlign: 'left'}}>Nome</th>
+                                    <th style={{textAlign: 'right'}}>Status</th>
+                                    <th style={{textAlign: 'right'}}>Ações</th>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            )}
+                            </thead>
+                            <tbody>
+                                {filteredSistemas.length === 0 ? (
+                                    <tr><td colSpan="3" className="no-results">Nenhum sistema encontrado.</td></tr>
+                                ) : (
+                                    currentSistemas.map(s => (
+                                        <tr key={s.id} onClick={() => handleSelectRow(s)} className={editingId === s.id ? 'selected' : 'selectable'} style={{opacity: s.ativo ? 1 : 0.6}}>
+                                            <td className="cell-name">
+                                                <strong title={s.nome}>{truncate(s.nome)}</strong>
+                                                <div title={s.descricao}>{truncate(s.descricao, 40)}</div>
+                                            </td>
+                                            <td style={{textAlign: 'right', whiteSpace: 'nowrap'}}>
+                                                <span onClick={(e) => { e.stopPropagation(); toggleActive(s); }} className={`badge ${s.ativo ? 'on' : 'off'}`}>
+                                                    {s.ativo ? 'Ativo' : 'Inativo'}
+                                                </span>
+                                            </td>
+                                            <td className="cell-actions">
+                                                <button onClick={(e) => { e.stopPropagation(); requestDelete(s); }} className="btn danger small">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )
+                )}
+            </div>
+
+            {/* Paginação */}
+            <div className="pagination-container">
+                  <button onClick={() => paginate(1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Primeira">«</button>
+                  <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Anterior">‹</button>
+
+                  {getPaginationGroup().map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => paginate(item)}
+                      className={`pagination-btn ${currentPage === item ? 'active' : ''}`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+
+                  {totalPages === 0 && (
+                      <button className="pagination-btn active" disabled>1</button>
+                  )}
+
+                  <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Próxima">›</button>
+                  <button onClick={() => paginate(totalPages)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Última">»</button>
+            </div>
         </div>
       </section>
     </main>

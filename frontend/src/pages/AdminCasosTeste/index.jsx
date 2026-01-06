@@ -4,13 +4,12 @@ import { api } from '../../services/api';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
 import './styles.css';
 
-// Componente Reutilizável de Dropdown com Pesquisa
+// Componente Reutilizável de Dropdown (Mantido igual)
 const SearchableSelect = ({ options, value, onChange, placeholder, disabled, labelKey = 'nome' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef(null);
 
-  // Sincroniza o texto do input com o valor selecionado (ex: ao carregar edição)
   useEffect(() => {
     const selectedOption = options.find(opt => String(opt.id) === String(value));
     if (selectedOption) {
@@ -20,7 +19,6 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, lab
     }
   }, [value, options, labelKey]);
 
-  // Fecha o dropdown ao clicar fora
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -117,19 +115,14 @@ export function AdminCasosTeste() {
     passos: [{ ordem: 1, acao: '', resultado_esperado: '' }]
   });
 
-  // Lógica específica para o campo "Importar Modelo"
+  // Lógica de Busca e Sugestões
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
 
-  const opcoesParaMostrar = searchTerm === '' 
-    ? [...casos].sort((a, b) => b.id - a.id).slice(0, 5) 
-    : casos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
-
-  const filteredCasos = casos.filter(c => 
-      c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.prioridade.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // CONFIGURAÇÃO DA PAGINAÇÃO
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
   
@@ -158,6 +151,11 @@ export function AdminCasosTeste() {
     if (selectedProjeto) loadDadosProjeto(selectedProjeto);
   }, [selectedProjeto]);
 
+  // Reseta paginação ao pesquisar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -182,6 +180,42 @@ export function AdminCasosTeste() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // LÓGICA DE FILTRO E PAGINAÇÃO
+  const filteredCasos = casos.filter(c => 
+      c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      c.prioridade.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...casos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : filteredCasos.slice(0, 5);
+
+  // Calcula paginação
+  const totalPages = Math.ceil(filteredCasos.length / itemsPerPage);
+  
+  if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  // 4. Cria a fatia para exibição
+  const currentCasos = filteredCasos.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const getPaginationGroup = () => {
+    const maxButtons = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+        start = Math.max(1, end - maxButtons + 1);
+    }
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
   };
 
   const currentProject = projetos.find(p => p.id == selectedProjeto);
@@ -512,57 +546,78 @@ export function AdminCasosTeste() {
 
            {loading ? <div className="loading-text">Carregando dados...</div> : (
              <div className="table-wrap">
-               {casos.length === 0 ? (
-                 <div className="empty-container">
-                    <p style={{marginBottom: '10px'}}>Nenhum caso de teste encontrado.</p>
-                    {isProjectActive && <button onClick={handleNew} className="btn primary small">Criar o primeiro</button>}
-                 </div>
-               ) : (
-                 <table>
-                   <thead>
-                     <tr>
-                       <th style={{width: '50px'}}>ID</th>
-                       <th style={{width: '35%'}}>Cenário</th>
-                       <th style={{width: '10%', textAlign: 'center'}}>Prioridade</th>
-                       <th style={{width: '20%'}}>Responsável</th>
-                       <th style={{width: '10%', textAlign: 'center'}}>Passos</th>
-                       <th style={{width: '10%', textAlign: 'right'}}>Ações</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {filteredCasos.length === 0 ? (
-                       <tr><td colSpan="6" className="no-results">Sem resultados para "{searchTerm}"</td></tr>
-                     ) : (
-                       filteredCasos.map(c => (
-                           <tr key={c.id} className="selectable" onClick={() => handleEdit(c)}>
-                               <td className="cell-id">#{c.id}</td>
-                               <td>
-                                   <div className="cell-name" title={c.nome}>{truncate(c.nome, 40)}</div>
-                               </td>
-                               <td className="cell-priority">
-                                   <span className="badge priority-badge">{c.prioridade}</span>
-                               </td>
-                               <td>
-                                   <span className="cell-resp">{c.responsavel ? truncate(c.responsavel.nome, 20) : '-'}</span>
-                               </td>
-                               <td className="cell-steps">
-                                   {c.passos?.length || 0}
-                               </td>
-                               <td className="cell-actions">
-                                   <button 
-                                       onClick={(e) => { e.stopPropagation(); setCasoToDelete(c); setIsDeleteModalOpen(true); }} 
-                                       className="btn danger small btn-action-icon"
-                                       title="Excluir"
-                                   >
-                                       🗑️
-                                   </button>
-                               </td>
-                           </tr>
-                       ))
-                     )}
-                   </tbody>
-                 </table>
-               )}
+               <div className="content-area">
+                   {filteredCasos.length === 0 ? (
+                     <div className="empty-container">
+                        <p style={{marginBottom: '10px'}}>Nenhum caso de teste encontrado.</p>
+                        {isProjectActive && <button onClick={handleNew} className="btn primary small">Criar o primeiro</button>}
+                     </div>
+                   ) : (
+                     <table>
+                       <thead>
+                         <tr>
+                           <th style={{width: '50px'}}>ID</th>
+                           <th style={{width: '35%'}}>Cenário</th>
+                           <th style={{width: '10%', textAlign: 'center'}}>Prioridade</th>
+                           <th style={{width: '20%'}}>Responsável</th>
+                           <th style={{width: '10%', textAlign: 'center'}}>Passos</th>
+                           <th style={{width: '10%', textAlign: 'right'}}>Ações</th>
+                         </tr>
+                       </thead>
+                       <tbody>                         
+                         {currentCasos.map(c => (
+                            <tr key={c.id} className="selectable" onClick={() => handleEdit(c)}>
+                                <td className="cell-id">#{c.id}</td>
+                                <td>
+                                    <div className="cell-name" title={c.nome}>{truncate(c.nome, 40)}</div>
+                                </td>
+                                <td className="cell-priority">
+                                    <span className="badge priority-badge">{c.prioridade}</span>
+                                </td>
+                                <td>
+                                    <span className="cell-resp">{c.responsavel ? truncate(c.responsavel.nome, 20) : '-'}</span>
+                                </td>
+                                <td className="cell-steps">
+                                    {c.passos?.length || 0}
+                                </td>
+                                <td className="cell-actions">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setCasoToDelete(c); setIsDeleteModalOpen(true); }} 
+                                        className="btn danger small btn-action-icon"
+                                        title="Excluir"
+                                    >
+                                        🗑️
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                       </tbody>
+                     </table>
+                   )}
+               </div>
+
+               {/* CONTROLES DE PAGINAÇÃO */}
+               <div className="pagination-container">
+                    <button onClick={() => paginate(1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Primeira">«</button>
+                    <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Anterior">‹</button>
+
+                    {getPaginationGroup().map((item) => (
+                      <button
+                        key={item}
+                        onClick={() => paginate(item)}
+                        className={`pagination-btn ${currentPage === item ? 'active' : ''}`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+
+                    {totalPages === 0 && (
+                        <button className="pagination-btn active" disabled>1</button>
+                    )}
+
+                    <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Próxima">›</button>
+                    <button onClick={() => paginate(totalPages)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Última">»</button>
+               </div>
              </div>
            )}
         </section>

@@ -17,13 +17,18 @@ export function AdminModulos() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null); 
 
-  const filteredModulos = modulos.filter(m => 
-      m.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // CONFIGURAÇÃO DA PAGINAÇÃO
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
-  const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str;
+  const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
 
   useEffect(() => { loadData(); }, []);
+
+  // Reseta paginação ao pesquisar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -41,10 +46,10 @@ export function AdminModulos() {
             api.get("/modulos/"),
             api.get("/sistemas/")
         ]);
-        setModulos(mods);
-        setSistemas(sis);
+        setModulos(Array.isArray(mods) ? mods : []);
+        setSistemas(Array.isArray(sis) ? sis : []);
         
-        const ativos = sis.filter(s => s.ativo);
+        const ativos = (Array.isArray(sis) ? sis : []).filter(s => s.ativo);
         if (ativos.length > 0 && !form.sistema_id) {
             setForm(f => ({ ...f, sistema_id: ativos[0].id }));
         }
@@ -123,9 +128,38 @@ export function AdminModulos() {
   const getSistemaName = (id) => sistemas.find(s => s.id === id)?.nome || '-';
   const sistemasAtivos = sistemas.filter(s => s.ativo);
 
+  // LÓGICA DE FILTRO
+  const filteredModulos = modulos.filter(m => 
+      m.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const opcoesParaMostrar = searchTerm === '' 
     ? [...modulos].sort((a, b) => b.id - a.id).slice(0, 5) 
-    : modulos.filter(m => m.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
+    : filteredModulos.slice(0, 5);
+
+  const totalPages = Math.ceil(filteredModulos.length / itemsPerPage);
+  
+  if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentModulos = filteredModulos.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const getPaginationGroup = () => {
+    const maxButtons = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+        start = Math.max(1, end - maxButtons + 1);
+    }
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
+  };
 
   return (
     <main className="container grid">
@@ -192,43 +226,68 @@ export function AdminModulos() {
         </div>
 
         <div className="table-wrap">
-            {modulos.length === 0 ? <p className="no-results">Nenhum módulo cadastrado.</p> : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th style={{textAlign: 'left'}}>Módulo</th>
-                            <th style={{textAlign: 'left'}}>Sistema</th>
-                            <th style={{textAlign: 'center'}}>Status</th>
-                            <th style={{textAlign: 'right'}}>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredModulos.length === 0 ? (
-                             <tr><td colSpan="4" className="no-results">Nada encontrado.</td></tr>
-                        ) : (
-                            filteredModulos.map(m => (
-                                <tr key={m.id} onClick={() => handleSelectRow(m)} className={editingId === m.id ? 'selected' : 'selectable'} style={{opacity: m.ativo ? 1 : 0.6}}>
-                                    <td className="cell-name">
-                                        <strong title={m.nome}>{truncate(m.nome)}</strong>
-                                        <div title={m.descricao}>{truncate(m.descricao, 40)}</div>
-                                    </td>
-                                    <td style={{verticalAlign: 'middle'}}>
-                                        <span className="badge system">{truncate(getSistemaName(m.sistema_id), 20)}</span>
-                                    </td>
-                                    <td style={{textAlign: 'center', verticalAlign: 'middle'}}>
-                                        <span onClick={(e) => { e.stopPropagation(); toggleActive(m); }} className={`badge ${m.ativo ? 'on' : 'off'}`}>
-                                            {m.ativo ? 'Ativo' : 'Inativo'}
-                                        </span>                                        
-                                    </td>
-                                    <td className="cell-actions">
-                                        <button onClick={(e) => { e.stopPropagation(); requestDelete(m); }} className="btn danger small">🗑️</button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            )}
+            <div className="content-area">
+                {modulos.length === 0 ? <p className="no-results">Nenhum módulo cadastrado.</p> : (
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style={{textAlign: 'left'}}>Módulo</th>
+                                <th style={{textAlign: 'left'}}>Sistema</th>
+                                <th style={{textAlign: 'center'}}>Status</th>
+                                <th style={{textAlign: 'right'}}>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredModulos.length === 0 ? (
+                                <tr><td colSpan="4" className="no-results">Nada encontrado.</td></tr>
+                            ) : (
+                                currentModulos.map(m => (
+                                    <tr key={m.id} onClick={() => handleSelectRow(m)} className={editingId === m.id ? 'selected' : 'selectable'} style={{opacity: m.ativo ? 1 : 0.6}}>
+                                        <td className="cell-name">
+                                            <strong title={m.nome}>{truncate(m.nome)}</strong>
+                                            <div title={m.descricao}>{truncate(m.descricao, 40)}</div>
+                                        </td>
+                                        <td style={{verticalAlign: 'middle'}}>
+                                            <span className="badge system">{truncate(getSistemaName(m.sistema_id), 20)}</span>
+                                        </td>
+                                        <td style={{textAlign: 'center', verticalAlign: 'middle'}}>
+                                            <span onClick={(e) => { e.stopPropagation(); toggleActive(m); }} className={`badge ${m.ativo ? 'on' : 'off'}`}>
+                                                {m.ativo ? 'Ativo' : 'Inativo'}
+                                            </span>                                    
+                                        </td>
+                                        <td className="cell-actions">
+                                            <button onClick={(e) => { e.stopPropagation(); requestDelete(m); }} className="btn danger small">🗑️</button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+
+            {/* Paginação */}
+            <div className="pagination-container">
+                  <button onClick={() => paginate(1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Primeira">«</button>
+                  <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Anterior">‹</button>
+
+                  {getPaginationGroup().map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => paginate(item)}
+                      className={`pagination-btn ${currentPage === item ? 'active' : ''}`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+
+                  {totalPages === 0 && (
+                      <button className="pagination-btn active" disabled>1</button>
+                  )}
+
+                  <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Próxima">›</button>
+                  <button onClick={() => paginate(totalPages)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Última">»</button>
+            </div>
         </div>
       </section>
     </main>

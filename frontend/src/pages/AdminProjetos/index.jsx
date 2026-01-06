@@ -4,13 +4,13 @@ import { api } from '../../services/api';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
 import './styles.css';
 
-// Componente Reutilizável (Mantido igual)
+// Componente Reutilizável
 const SearchableSelect = ({ options, value, onChange, placeholder, disabled, labelKey = 'nome' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef(null);
 
-  const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
+  const truncate = (str, n = 35) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
 
   useEffect(() => {
     const selectedOption = options.find(opt => String(opt.id) === String(value));
@@ -63,15 +63,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, lab
       />
       <span 
         className="search-icon" 
-        style={{ 
-            cursor: disabled ? 'not-allowed' : 'pointer', 
-            right: '10px', 
-            position: 'absolute', 
-            top: '50%', 
-            transform: 'translateY(-50%)',
-            fontSize: '0.8rem',
-            color: '#64748b'
-        }} 
+        style={{ cursor: disabled ? 'not-allowed' : 'pointer', right: '10px', position: 'absolute', top: '50%', transform: 'translateY(-50%)' }} 
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         ▼
@@ -84,7 +76,7 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, lab
           ) : (
             displayOptions.map(opt => (
               <li key={opt.id} onClick={() => handleSelect(opt)} title={opt[labelKey]}>
-                {truncate(opt[labelKey], 30)}
+                {truncate(opt[labelKey], 35)}
               </li>
             ))
           )}
@@ -97,7 +89,6 @@ const SearchableSelect = ({ options, value, onChange, placeholder, disabled, lab
 // Componente Principal 
 export function AdminProjetos() {
   const [projetos, setProjetos] = useState([]);
-  
   const [sistemas, setSistemas] = useState([]);
   const [modulos, setModulos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -122,15 +113,11 @@ export function AdminProjetos() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
 
+  // CONFIGURAÇÃO DA PAGINAÇÃO
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const truncate = (str, n = 25) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
-
-  const opcoesParaMostrar = searchTerm === '' 
-    ? [...projetos].sort((a, b) => b.id - a.id).slice(0, 5) 
-    : projetos.filter(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 5);
-
-  const filteredData = projetos.filter(p => 
-      p.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -145,6 +132,11 @@ export function AdminProjetos() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Reseta paginação ao pesquisar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const loadData = async () => {
     setLoading(true);
@@ -163,7 +155,6 @@ export function AdminProjetos() {
 
     } catch (error) {
       toast.error("Erro ao carregar dados.");
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -198,7 +189,6 @@ export function AdminProjetos() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!form.nome.trim()) return toast.warning("Nome é obrigatório.");
     if (!form.sistema_id) return toast.warning("Selecione um Sistema.");
     if (!form.modulo_id) return toast.warning("Selecione um Módulo.");
@@ -222,7 +212,6 @@ export function AdminProjetos() {
       handleReset();
       loadData();
     } catch (error) {
-      console.error(error);
       const msg = error.response?.data?.detail || "Erro ao salvar projeto.";
       toast.error(typeof msg === 'string' ? msg : "Erro de validação.");
     }
@@ -250,8 +239,41 @@ export function AdminProjetos() {
     .filter(u => u.nivel_acesso_id === 1 && u.ativo)
     .map(u => ({
         ...u,
-        labelCompleto: `${u.nome} ${u.username ? `(#${u.username})` : ''}`
+        labelCompleto: `${u.nome} ${u.username ? `(@${u.username})` : ''}`
     }));
+
+  // LÓGICA DE FILTRO E PAGINAÇÃO
+  const filteredData = projetos.filter(p => 
+      p.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const opcoesParaMostrar = searchTerm === '' 
+    ? [...projetos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : filteredData.slice(0, 5);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  
+  if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentData = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const getPaginationGroup = () => {
+    const maxButtons = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+        start = Math.max(1, end - maxButtons + 1);
+    }
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
+  };
 
   return (
     <main className="container">
@@ -273,7 +295,6 @@ export function AdminProjetos() {
               </div>
               
               <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                  
                   <div>
                     <label className="input-label">Nome do Projeto <span className="required-asterisk">*</span></label>
                     <input 
@@ -281,7 +302,6 @@ export function AdminProjetos() {
                        className="form-control" placeholder="Ex: E-commerce 2.0"
                     />
                   </div>
-                  
                   <div>
                     <label className="input-label">Descrição</label>
                     <textarea 
@@ -289,7 +309,6 @@ export function AdminProjetos() {
                        className="form-control" rows="3"
                     />
                   </div>
-
                   <div className="form-grid">
                       <div>
                         <label className="input-label">Sistema <span className="required-asterisk">*</span></label>
@@ -313,7 +332,6 @@ export function AdminProjetos() {
                         />
                       </div>
                   </div>
-
                   <div className="form-grid">
                       <div>
                         <label className="input-label">Responsável (Admin) <span className="required-asterisk">*</span></label>
@@ -325,7 +343,6 @@ export function AdminProjetos() {
                             labelKey="labelCompleto" 
                         />
                       </div>
-
                       <div>
                         <label className="input-label">Status</label>
                         <select 
@@ -339,7 +356,6 @@ export function AdminProjetos() {
                       </div>
                   </div>
               </div>
-
               <div className="form-actions">
                   <button type="button" onClick={handleReset} className="btn">Cancelar</button>
                   <button type="submit" className="btn primary">Salvar</button>
@@ -375,12 +391,8 @@ export function AdminProjetos() {
                                     opcoesParaMostrar.map(p => (
                                         <li key={p.id} onClick={() => { setSearchTerm(p.nome); setShowSuggestions(false); }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                                                <span>
-                                                    {truncate(p.nome, 25)}
-                                                </span>
-                                                <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle:'italic' }}>
-                                                    {p.status}
-                                                </span>
+                                                <span>{truncate(p.nome, 25)}</span>
+                                                <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontStyle:'italic' }}>{p.status}</span>
                                             </div>
                                         </li>
                                     ))
@@ -393,31 +405,27 @@ export function AdminProjetos() {
 
            {loading ? <div className="loading-text">Carregando...</div> : (
              <div className="table-wrap">
-               {projetos.length === 0 ? (
-                 <div className="empty-container">Nenhum projeto cadastrado.</div>
-               ) : (
-                 <table>
-                   <thead>
-                     <tr>
-                       <th style={{width: '60px'}}>ID</th>
-                       <th>Nome</th>
-                       <th>Descrição</th>
-                       <th>Responsável</th>
-                       <th style={{textAlign: 'center'}}>Status</th>
-                       <th style={{textAlign: 'right'}}>Ações</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {filteredData.length === 0 ? (
-                        <tr><td colSpan="6" className="no-results">Sem resultados para "{searchTerm}"</td></tr>
-                     ) : (
-                        filteredData.map(item => (
+               <div className="content-area">
+                   {filteredData.length === 0 ? (
+                     <div className="empty-container">Nenhum projeto cadastrado.</div>
+                   ) : (
+                     <table>
+                       <thead>
+                         <tr>
+                           <th style={{width: '60px'}}>ID</th>
+                           <th>Nome</th>
+                           <th>Descrição</th>
+                           <th>Responsável</th>
+                           <th style={{textAlign: 'center'}}>Status</th>
+                           <th style={{textAlign: 'right'}}>Ações</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {currentData.map(item => (
                             <tr key={item.id} className="selectable" onClick={() => handleEdit(item)}>
                                 <td className="cell-id">#{item.id}</td>
                                 <td className="cell-name">{item.nome}</td>
                                 <td style={{color:'#64748b'}}>{truncate(item.descricao, 30)}</td>
-                                
-                                {/* --- COLUNA MODIFICADA --- */}
                                 <td style={{fontSize: '0.85rem'}}>
                                     {(() => {
                                         const resp = usuarios.find(u => u.id === item.responsavel_id);
@@ -427,7 +435,7 @@ export function AdminProjetos() {
                                                     <span>{resp.nome}</span>
                                                     {resp.username && (
                                                         <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>
-                                                            (#{resp.username})
+                                                            (@{resp.username})
                                                         </span>
                                                     )}
                                                 </div>
@@ -436,8 +444,6 @@ export function AdminProjetos() {
                                         return '-';
                                     })()}
                                 </td>
-                                {/* ------------------------- */}
-
                                 <td className="cell-status">
                                     <span className={`status-badge ${item.status}`}>{item.status}</span>
                                 </td>
@@ -450,11 +456,34 @@ export function AdminProjetos() {
                                     </button>
                                 </td>
                             </tr>
-                        ))
-                     )}
-                   </tbody>
-                 </table>
-               )}
+                        ))}
+                       </tbody>
+                     </table>
+                   )}
+               </div>
+
+               {/* PAGINAÇÃO */}
+               <div className="pagination-container">
+                    <button onClick={() => paginate(1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Primeira">«</button>
+                    <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Anterior">‹</button>
+
+                    {getPaginationGroup().map((item) => (
+                      <button
+                        key={item}
+                        onClick={() => paginate(item)}
+                        className={`pagination-btn ${currentPage === item ? 'active' : ''}`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+
+                    {totalPages === 0 && (
+                        <button className="pagination-btn active" disabled>1</button>
+                    )}
+
+                    <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Próxima">›</button>
+                    <button onClick={() => paginate(totalPages)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Última">»</button>
+               </div>
              </div>
            )}
         </section>

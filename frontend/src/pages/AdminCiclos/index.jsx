@@ -5,18 +5,24 @@ import { ConfirmationModal } from '../../components/ConfirmationModal';
 import './styles.css';
 
 export function AdminCiclos() {
-
   const [ciclos, setCiclos] = useState([]);
   const [projetos, setProjetos] = useState([]);
   const [selectedProjeto, setSelectedProjeto] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState('list');
   const [editingId, setEditingId] = useState(null);
+  
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
+
+  // CONFIGURAÇÃO DA PAGINAÇÃO
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const [form, setForm] = useState({
     nome: '',
@@ -27,34 +33,7 @@ export function AdminCiclos() {
     projeto_id: ''
   });
 
-  // Helpers de Data
-  const getTodayString = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const getNextDayString = (dateString) => {
-    if (!dateString) return getTodayString();
-    const date = new Date(dateString + 'T00:00:00'); 
-    date.setDate(date.getDate() + 1);
-    
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const opcoesParaMostrar = searchTerm === '' 
-    ? [...ciclos].sort((a, b) => b.id - a.id).slice(0, 5) 
-    : ciclos.filter(c => c.nome.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 8);
-
-  const filteredCiclos = ciclos.filter(c => 
-      c.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  // USE EFFECTS
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -65,6 +44,7 @@ export function AdminCiclos() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
+  // Carrega projetos
   useEffect(() => {
     const loadProjetos = async () => {
       try {
@@ -82,11 +62,20 @@ export function AdminCiclos() {
     loadProjetos();
   }, []);
 
+  // Carrega ciclos
   useEffect(() => {
     if (selectedProjeto) {
       loadCiclos(selectedProjeto);
+    } else {
+        setCiclos([]); 
     }
   }, [selectedProjeto]);
+
+  // Reseta paginação ao pesquisar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
 
   const loadCiclos = async (projId) => {
     setLoading(true);
@@ -99,6 +88,60 @@ export function AdminCiclos() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // LOGICA DE FILTRO E PAGINAÇÃO
+  const filteredCiclos = ciclos.filter(c => 
+      c.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const dropdownOptions = searchTerm === '' 
+    ? [...ciclos].sort((a, b) => b.id - a.id).slice(0, 5) 
+    : filteredCiclos.slice(0, 5);
+
+  const totalPages = Math.ceil(filteredCiclos.length / itemsPerPage);
+  
+  if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentCiclos = filteredCiclos.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const getPaginationGroup = () => {
+    const maxButtons = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    if (end - start + 1 < maxButtons) {
+        start = Math.max(1, end - maxButtons + 1);
+    }
+    const pages = [];
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
+  };
+
+  // HELPERS DE DATA
+  const getTodayString = () => new Date().toISOString().split('T')[0];
+  
+  const getNextDayString = (dateString) => {
+    if (!dateString) return getTodayString();
+    const date = new Date(dateString);
+    date.setDate(date.getDate() + 1); 
+    return date.toISOString().split('T')[0];
+  };
+
+  const getProjetoName = (id) => projetos.find(p => p.id === id)?.nome || '-';
+  const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
+  
+  // Correção de formatação de data
+  const formatDate = (dateStr) => {
+      if (!dateStr) return '-';
+      const datePart = dateStr.toString().split('T')[0];
+      const [ano, mes, dia] = datePart.split('-');
+      return `${dia}/${mes}/${ano}`;
   };
 
   const currentProject = projetos.find(p => p.id == selectedProjeto);
@@ -143,23 +186,6 @@ export function AdminCiclos() {
     if (!form.projeto_id) return toast.warning("Selecione um projeto.");
     if (!form.data_inicio || !form.data_fim) return toast.warning("Datas de início e fim são obrigatórias.");
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const [anoIni, mesIni, diaIni] = form.data_inicio.split('-').map(Number);
-    const startDate = new Date(anoIni, mesIni - 1, diaIni);
-
-    const [anoFim, mesFim, diaFim] = form.data_fim.split('-').map(Number);
-    const endDate = new Date(anoFim, mesFim - 1, diaFim);
-
-    if (!editingId && startDate < today) {
-        return toast.warning("A data de início não pode ser anterior a hoje.");
-    }
-
-    if (endDate <= startDate) {
-        return toast.warning("A data final deve ser pelo menos um dia após a data de início.");
-    }
-
     const payload = { 
         ...form,
         projeto_id: parseInt(form.projeto_id)
@@ -201,10 +227,6 @@ export function AdminCiclos() {
       setItemToDelete(null);
     }
   };
-
-  const getProjetoName = (id) => projetos.find(p => p.id === id)?.nome || '-';
-  const truncate = (str, n = 30) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
-  const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-';
 
   return (
     <main className="container">
@@ -259,7 +281,6 @@ export function AdminCiclos() {
                   </div>
                   
                   <div className="form-grid" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
-                      
                       <div>
                         <label className="input-label">Data Início <span className="required-asterisk">*</span></label>
                         <input 
@@ -356,14 +377,16 @@ export function AdminCiclos() {
                         />
                         <span className="search-icon">🔍</span>
 
-                        {showSuggestions && opcoesParaMostrar.length > 0 && (
+                        {showSuggestions && dropdownOptions.length > 0 && (
                             <ul className="custom-dropdown">
-                                {opcoesParaMostrar.map(c => (
+                                {dropdownOptions.map(c => (
                                     <li key={c.id} onClick={() => { setSearchTerm(c.nome); setShowSuggestions(false); }}>
-                                        <span>
-                                            {truncate(c.nome, 20)}
-                                            <span style={{fontSize:'0.75rem', color:'#9ca3af', marginLeft:'8px'}}>({c.status})</span>
-                                        </span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                            <span>{truncate(c.nome, 20)}</span>
+                                            <span style={{fontSize:'0.75rem', color:'#9ca3af', fontStyle:'italic'}}>
+                                                {c.status}
+                                            </span>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
@@ -374,58 +397,79 @@ export function AdminCiclos() {
 
            {loading ? <div className="loading-text">Carregando dados...</div> : (
              <div className="table-wrap">
-               {ciclos.length === 0 ? (
-                 <div className="empty-container">
-                    <p style={{marginBottom: '10px'}}>Nenhum ciclo encontrado.</p>
-                    {isProjectActive && <button onClick={handleNew} className="btn primary small">Criar o primeiro</button>}
-                 </div>
-               ) : (
-                 <table>
-                   <thead>
-                     <tr>
-                       <th style={{width: '60px'}}>ID</th>
-                       <th>Ciclo</th>
-                       <th>Projeto</th>
-                       <th style={{textAlign: 'center'}}>Período</th>
-                       <th style={{textAlign: 'center'}}>Status</th>
-                       <th style={{textAlign: 'right'}}>Ações</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {filteredCiclos.length === 0 ? (
-                       <tr><td colSpan="6" style={{textAlign:'center', padding:'20px', color: '#64748b'}}>Sem resultados para "{searchTerm}"</td></tr>
-                     ) : (
-                        filteredCiclos.map(item => (
-                           <tr key={item.id} className="selectable" onClick={() => handleEdit(item)}>
-                               <td className="cell-id">#{item.id}</td>
-                               <td>
-                                   <div className="cell-name">{item.nome}</div>
-                                   <div style={{fontSize:'0.75rem', color:'#94a3b8', marginTop:'2px'}}>{item.descricao}</div>
-                               </td>
-                               <td style={{color:'#64748b'}}>{getProjetoName(item.projeto_id)}</td>
-                               <td style={{textAlign: 'center', fontSize: '0.85rem', color:'#64748b'}}>
-                                   {formatDate(item.data_inicio)} <span style={{margin:'0 5px'}}>à</span> {formatDate(item.data_fim)}
-                               </td>
-                               <td className="cell-status">
-                                   <span className={`status-badge ${item.status}`}>
-                                       {item.status.replace('_', ' ').toUpperCase()}
-                                   </span>
-                               </td>
-                               <td className="cell-actions">
-                                   <button 
-                                       onClick={(e) => { e.stopPropagation(); setItemToDelete(item); setIsDeleteModalOpen(true); }} 
-                                       className="btn danger small btn-action-icon"
-                                       title="Excluir"
-                                   >
-                                       🗑️
-                                   </button>
-                               </td>
-                           </tr>
-                       ))
-                     )}
-                   </tbody>
-                 </table>
-               )}
+               <div className="content-area">
+                   {filteredCiclos.length === 0 ? (
+                     <div className="empty-container">
+                        <p style={{marginBottom: '10px'}}>Nenhum ciclo encontrado.</p>
+                        {isProjectActive && <button onClick={handleNew} className="btn primary small">Criar o primeiro</button>}
+                     </div>
+                   ) : (
+                     <table>
+                       <thead>
+                         <tr>
+                           <th style={{width: '60px'}}>ID</th>
+                           <th>Ciclo</th>
+                           <th>Projeto</th>
+                           <th style={{textAlign: 'center'}}>Período</th>
+                           <th style={{textAlign: 'center'}}>Status</th>
+                           <th style={{textAlign: 'right'}}>Ações</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {currentCiclos.map(item => (
+                            <tr key={item.id} className="selectable" onClick={() => handleEdit(item)}>
+                                <td className="cell-id">#{item.id}</td>
+                                <td>
+                                    <div className="cell-name">{item.nome}</div>
+                                    <div style={{fontSize:'0.75rem', color:'#94a3b8', marginTop:'2px'}}>{item.descricao}</div>
+                                </td>
+                                <td style={{color:'#64748b'}}>{getProjetoName(item.projeto_id)}</td>
+                                <td style={{textAlign: 'center', fontSize: '0.85rem', color:'#64748b'}}>
+                                    {formatDate(item.data_inicio)} <span style={{margin:'0 5px'}}>à</span> {formatDate(item.data_fim)}
+                                </td>
+                                <td className="cell-status">
+                                    <span className={`status-badge ${item.status}`}>
+                                        {item.status.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                </td>
+                                <td className="cell-actions">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setItemToDelete(item); setIsDeleteModalOpen(true); }} 
+                                        className="btn danger small btn-action-icon"
+                                        title="Excluir"
+                                    >
+                                        🗑️
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                       </tbody>
+                     </table>
+                   )}
+               </div>
+
+               {/* CONTROLES DE PAGINAÇÃO */}
+               <div className="pagination-container">
+                    <button onClick={() => paginate(1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Primeira">«</button>
+                    <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1 || totalPages === 0} className="pagination-btn nav-btn" title="Anterior">‹</button>
+
+                    {getPaginationGroup().map((item) => (
+                      <button
+                        key={item}
+                        onClick={() => paginate(item)}
+                        className={`pagination-btn ${currentPage === item ? 'active' : ''}`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+
+                    {totalPages === 0 && (
+                        <button className="pagination-btn active" disabled>1</button>
+                    )}
+
+                    <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Próxima">›</button>
+                    <button onClick={() => paginate(totalPages)} disabled={currentPage === totalPages || totalPages === 0} className="pagination-btn nav-btn" title="Última">»</button>
+               </div>
              </div>
            )}
         </section>
