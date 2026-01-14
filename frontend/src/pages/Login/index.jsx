@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from '../../context/SnackbarContext'; 
 import { api } from '../../services/api';
@@ -87,7 +87,7 @@ export function Login() {
                 value={username} 
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Usuário" 
-                className={styles.input}
+                className={styles.userinput}
               />
             </div>
             <div>
@@ -97,8 +97,14 @@ export function Login() {
                 value={password} 
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Senha" 
-                className={styles.input}
+                className={styles.passinput}
               />
+            </div>
+
+            <div className={styles.utilityLinks}>
+              <Link to="/forgot-password" className={styles.forgotPasswordLink}>
+                Esqueceu sua senha?
+              </Link>
             </div>
             
             <div style={{ gridColumn: '1/-1' }}>

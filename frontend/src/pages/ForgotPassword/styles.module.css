@@ -7,7 +7,7 @@
   font-family: 'Inter', sans-serif;
 }
 
-.loginContainer {
+.forgotPasswordContainer {
   justify-self: center; 
   align-self: center;
   box-sizing: border-box; 
@@ -56,11 +56,18 @@
   font-size: 1.4rem;
   font-weight: 600;
   margin-top: 10px;
-  margin-bottom: 50px;
+  margin-bottom: 20px;
   padding-bottom: 30px;
   border-bottom: 1px solid #f3f4f6;
   color: #A8DADC;
   text-align: center;
+}
+
+.subtitle {
+    color: #ffffff;
+    text-align: center;
+    padding: 0 20px;
+    margin-bottom: 25px;
 }
 
 .form {
@@ -70,7 +77,7 @@
   margin-bottom: 20px;
 }
 
-.userinput {
+.input {
   display: block;
   width: 70%;
   padding: 10px;
@@ -79,20 +86,8 @@
   box-sizing: border-box;
   background-color: #DDDDDD;
   color: #0D1A23;
+  margin-top: 15px;
   margin-bottom: 15px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.passinput {
-  display: block;
-  width: 70%;
-  padding: 10px;
-  border: 1px solid #0F2B4B;
-  border-radius: 4px;
-  box-sizing: border-box;
-  background-color: #DDDDDD;
-  color: #0D1A23;
   margin-left: auto;
   margin-right: auto;
 }
@@ -114,6 +109,7 @@
   font-size: .9rem;
   margin-left: auto;
   margin-right: auto;
+  margin-bottom: -5px;
   background-color: #1E4497;
   color: #FFFFFF;
 }
@@ -149,10 +145,9 @@
 }
 
 .utilityLinks {
-  text-align: right;
+  text-align: left;
   margin-top: -10px;
   margin-bottom: 2px;
-  margin-right: 20px;
 }
 
 .forgotPasswordLink {
@@ -161,7 +156,7 @@
   font-size: 0.8em;
   transition: color 0.2s ease-in-out;
   margin-top: -20px;
-  margin-right: 55px;
+  margin-left: 75px;
 }
 
 .forgotPasswordLink:hover {

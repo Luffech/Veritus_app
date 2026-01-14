@@ -18,7 +18,8 @@ import { AdminCasosTeste } from './pages/AdminCasosTeste';
 import { AdminCiclos } from './pages/AdminCiclos';
 import { QADefeitos } from './pages/QADefeitos';
 import { QARunner } from './pages/QARunner';
-import { Dashboard } from './pages/Dashboard'; 
+import { Dashboard } from './pages/Dashboard';
+import { ForgotPassword } from './pages/ForgotPassword';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             
             <Route element={<ProtectedLayout roles={['admin']} />}>
               <Route path="/admin" element={<Dashboard />} />
