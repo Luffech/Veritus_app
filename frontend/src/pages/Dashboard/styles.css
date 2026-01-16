@@ -20,7 +20,7 @@
 }
 
 .kpi-card {
-  padding: 20px 24px;
+  padding: 0px 24px;
   border-radius: 12px;
   /* Sombra mais suave compatível com fundo claro */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 
