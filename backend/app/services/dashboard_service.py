@@ -4,7 +4,12 @@ from app.schemas.dashboard import (
     DashboardResponse, 
     DashboardKPI, 
     DashboardCharts, 
-    ChartDataPoint
+    ChartDataPoint,
+    # Adicionando as novas importações necessárias
+    RunnerDashboardResponse,
+    RunnerKPI,
+    RunnerRankingData,
+    RunnerDashboardCharts
 )
 from app.models.testing import StatusExecucaoEnum, SeveridadeDefeitoEnum
 
@@ -78,3 +83,30 @@ class DashboardService:
         )
 
         return DashboardResponse(kpis=kpis, charts=charts)
+    
+    async def get_runner_dashboard_data(self) -> RunnerDashboardResponse:
+        # Repare nos 8 espaços (2 tabs) de recuo aqui:
+        # 1. Procura os dados brutos no repositório
+        kpis_brutos = await self.repo.get_runner_kpis()
+        ranking_bruto = await self.repo.get_ranking_runners()
+
+        # 2. Organiza os KPIs (os 4 cards de cima)
+        kpis = RunnerKPI(
+            total_execucoes_concluidas=kpis_brutos["total_concluidos"],
+            total_defeitos_reportados=kpis_brutos["total_defeitos"],
+            tempo_medio_execucao_minutos=kpis_brutos["tempo_medio_minutos"],
+            testes_em_fila=kpis_brutos["total_fila"]
+        )
+
+        # 3. Prepara o Ranking de Produtividade (Gráfico de Barras)
+        ranking_data = [
+            RunnerRankingData(label=nome, value=total, color="#3b82f6") 
+            for nome, total in ranking_bruto
+        ]
+
+        charts = RunnerDashboardCharts(
+            ranking_produtividade=ranking_data,
+            defeitos_por_runner=[] 
+        )
+
+        return RunnerDashboardResponse(kpis=kpis, charts=charts)

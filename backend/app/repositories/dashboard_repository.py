@@ -10,6 +10,7 @@ from app.models.testing import (
     ExecucaoTeste, StatusExecucaoEnum
 )
 from app.models.modulo import Modulo
+from app.models.usuario import Usuario # IMPORTAÇÃO ADICIONADA
 
 class DashboardRepository:
     def __init__(self, db: AsyncSession):
@@ -46,8 +47,6 @@ class DashboardRepository:
         )
 
         # 4. Cálculo de Taxa de Sucesso (Passou / Total Finalizado)
-        # Finalizado = Passou + Falhou + Bloqueado (Ignora pendente/em_progresso)
-        
         q_passou = (
             select(func.count(ExecucaoTeste.id))
             .join(CicloTeste)
@@ -84,7 +83,6 @@ class DashboardRepository:
         passou = (await self.db.execute(q_passou)).scalar() or 0
         total_finalizados = (await self.db.execute(q_total_finalizados)).scalar() or 0
 
-        # Evita divisão por zero
         if total_finalizados > 0:
             results["taxa_sucesso_ciclos"] = round((passou / total_finalizados) * 100, 1)
         else:
@@ -122,6 +120,47 @@ class DashboardRepository:
             .group_by(Modulo.nome)
             .order_by(desc(func.count(Defeito.id)))
             .limit(limit)
+        )
+        result = await self.db.execute(query)
+        return result.all()
+    
+    # --- MÉTODOS CORRIGIDOS (INDENTAÇÃO E IMPORTAÇÃO) ---
+    
+    async def get_runner_kpis(self):
+        q_concluidos = select(func.count(ExecucaoTeste.id)).where(
+            ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.passou, StatusExecucaoEnum.falhou])
+        )
+        
+        q_defeitos = select(func.count(Defeito.id))
+
+        q_pendentes = select(func.count(ExecucaoTeste.id)).where(
+            ExecucaoTeste.status_geral == StatusExecucaoEnum.pendente
+        )
+
+        q_tempo = select(
+            func.avg(
+                func.extract('epoch', ExecucaoTeste.updated_at) - 
+                func.extract('epoch', ExecucaoTeste.created_at)
+            )
+        ).where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.passou, StatusExecucaoEnum.falhou]))
+
+        results = {}
+        results["total_concluidos"] = (await self.db.execute(q_concluidos)).scalar() or 0
+        results["total_defeitos"] = (await self.db.execute(q_defeitos)).scalar() or 0
+        results["total_fila"] = (await self.db.execute(q_pendentes)).scalar() or 0
+        
+        segundos_medios = (await self.db.execute(q_tempo)).scalar() or 0
+        results["tempo_medio_minutos"] = round(segundos_medios / 60, 1)
+
+        return results
+
+    async def get_ranking_runners(self):
+        query = (
+            select(Usuario.nome, func.count(ExecucaoTeste.id))
+            .join(ExecucaoTeste, Usuario.id == ExecucaoTeste.responsavel_id)
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.passou, StatusExecucaoEnum.falhou]))
+            .group_by(Usuario.nome)
+            .order_by(desc(func.count(ExecucaoTeste.id)))
         )
         result = await self.db.execute(query)
         return result.all()

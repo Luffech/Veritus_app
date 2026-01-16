@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import login, sistemas, modulo, usuarios, metrica, projeto, teste, defeito, dashboard
+from .endpoints import login, sistemas, modulo, usuarios, metrica, projeto, teste, defeito, dashboard, runner_dashboard
 
 # Cria o roteador principal que vai agrupar todas as partes da API.
 api_router = APIRouter()
@@ -14,3 +14,4 @@ api_router.include_router(login.router, prefix="/login", tags=["Login"])
 api_router.include_router(teste.router, prefix="/testes", tags=["Testes"])
 api_router.include_router(defeito.router, prefix="/defeitos", tags=["Defeitos"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+api_router.include_router(runner_dashboard.router, prefix="/dashboard-runners", tags=["Dashboard"])

@@ -27,3 +27,24 @@ class DashboardCharts(BaseModel):
 class DashboardResponse(BaseModel):
     kpis: DashboardKPI
     charts: DashboardCharts
+
+# Novos Schemas para o Dashboard de Performance dos Testadores 
+
+class RunnerKPI(BaseModel):
+    total_execucoes_concluidas: int
+    total_defeitos_reportados: int
+    tempo_medio_execucao_minutos: float
+    testes_em_fila: int
+
+class RunnerRankingData(BaseModel):
+    label: str  # Nome do Testador
+    value: int  # Quantidade de testes concluídos
+    color: Optional[str] = None
+
+class RunnerDashboardCharts(BaseModel):
+    ranking_produtividade: List[RunnerRankingData]
+    defeitos_por_runner: List[RunnerRankingData]
+
+class RunnerDashboardResponse(BaseModel):
+    kpis: RunnerKPI
+    charts: RunnerDashboardCharts
