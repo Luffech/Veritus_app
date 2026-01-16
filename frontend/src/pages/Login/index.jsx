@@ -105,6 +105,7 @@ export function Login() {
                 type="button"
                 className={styles.eyeButton}
                 onClick={() => setShowPassword(!showPassword)}
+                tabIndex="-1"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>

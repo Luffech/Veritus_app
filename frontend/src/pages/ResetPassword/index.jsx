@@ -16,6 +16,7 @@ export function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [tokenValid, setTokenValid] = useState(false);
+  const [isDone, setIsDone] = useState(false);
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -23,6 +24,9 @@ export function ResetPassword() {
   const passwordsDontMatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   useEffect(() => {
+
+    if (isDone) return;
+
     async function validateToken() {
       if (!token) {
         snackError("Token de redefinição não encontrado.");
@@ -40,7 +44,7 @@ export function ResetPassword() {
       }
     }
     validateToken();
-  }, [token, navigate, snackError]); // Dependências do useEffect
+  }, [token, navigate, snackError, isDone]); // Dependências do useEffect
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,7 +59,7 @@ export function ResetPassword() {
       return;
     }
 
-    if (password.length < 6) { // Exemplo de validação de senha
+    if (password.length < 6) {
       snackError("A senha deve ter no mínimo 6 caracteres.");
       return;
     }
@@ -71,10 +75,10 @@ export function ResetPassword() {
       // Envia o token e a nova senha para o backend
       await api.post("/reset-password/confirm", payload);
 
-      snackSuccess("Sua senha foi redefinida com sucesso! Você já pode fazer login.");
-      setTimeout(() => {
-        navigate('/', { replace: true }); // Volta para a página de login
-      }, 3000);
+      setIsDone(true); // Stop the useEffect from running logic
+      snackSuccess("Sua senha foi redefinida com sucesso!");
+
+      navigate('/', { replace: true }); // Volta para a página de login
 
     } catch (err) {
       console.error("Erro ao redefinir senha:", err);
@@ -124,6 +128,7 @@ export function ResetPassword() {
                 type="button"
                 className={styles.eyeButton}
                 onClick={() => setShowPassword(!showPassword)}
+                tabIndex="-1"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -141,6 +146,7 @@ export function ResetPassword() {
                 type="button"
                 className={styles.eyeButton}
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                tabIndex="-1"
               >
                 {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
