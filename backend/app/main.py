@@ -1,18 +1,34 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 from app.core.config import settings
+from app.core.database import Base, engine
 from app.api.v1.api import api_router
 import os
 
 # Garante que a pasta de evidências exista ao iniciar.
 os.makedirs("evidencias", exist_ok=True)
 
-# Inicializa a aplicação FastAPI com título e configurações de versão.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Gerenciador de ciclo de vida para lidar com operações assíncronas 
+    durante o startup e shutdown da aplicação.
+    """
+    async with engine.begin() as conn:
+        # Cria as tabelas assincronamente se elas não existirem
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Caso precise fechar conexões ao desligar
+    await engine.dispose()
+
+# Inicializa a aplicação FastAPI com título, configurações e o lifespan
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 # Configura o CORS para permitir requisições de qualquer origem.

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from '../../context/SnackbarContext'; 
 import { api } from '../../services/api';
 import styles from './styles.module.css';
+import { Eye, EyeOff } from 'lucide-react';
 
 export function Login() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
     if (isAuthenticated) {
@@ -80,7 +82,7 @@ export function Login() {
           <h1 className={styles.title}>Login</h1>
 
           <form onSubmit={handleSubmit} className={styles.form}>
-            <div>
+            <div className={styles.inputContainer}>
               <input 
                 type="text" 
                 id="username"
@@ -90,15 +92,22 @@ export function Login() {
                 className={styles.userinput}
               />
             </div>
-            <div>
-              <input 
-                type="password" 
+            <div className={styles.inputContainer}>
+              <input
+                type={showPassword ? "text" : "password"}
                 id="password"
-                value={password} 
+                value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Senha" 
+                placeholder="Senha"
                 className={styles.passinput}
               />
+              <button
+                type="button"
+                className={styles.eyeButton}
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
 
             <div className={styles.utilityLinks}>

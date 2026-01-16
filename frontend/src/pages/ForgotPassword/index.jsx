@@ -19,6 +19,12 @@ export function ForgotPassword() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      snackError("Por favor, inclua um '@' e um domínio válido no endereço de e-mail.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -66,13 +72,12 @@ export function ForgotPassword() {
           <form onSubmit={handleSubmit} className={styles.form}>
             <div>
               <input 
-                type="email" 
+                type="text" 
                 id="email"
                 value={email} 
                 onChange={e => setEmail(e.target.value)}
                 placeholder="E-mail" 
                 className={styles.input}
-                required
               />
             </div>
             
