@@ -44,6 +44,12 @@ class SeveridadeDefeitoEnum(str, enum.Enum):
     medio = "medio"
     bajo = "baixo"
 
+class StatusCasoTesteEnum(str, enum.Enum):
+    rascunho = "rascunho"     # Ainda sendo escrito
+    ativo = "ativo"           # Pronto para usar em ciclos
+    obsoleto = "obsoleto"     # Antigo, não usar mais
+    revisao = "revisao"       # Precisa de ajuste
+
 # Ciclos de Teste
 class CicloTeste(Base):
     __tablename__ = "ciclos_teste"
@@ -104,6 +110,7 @@ class CasoTeste(Base):
     pre_condicoes = Column(Text)
     criterios_aceitacao = Column(Text) 
     prioridade = Column(Enum(PrioridadeEnum, name='prioridade_enum', create_type=False), default=PrioridadeEnum.media)
+    status = Column(Enum(StatusCasoTesteEnum, name='status_caso_teste_enum', create_type=False), default=StatusCasoTesteEnum.rascunho)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -188,9 +195,9 @@ class Defeito(Base):
     id = Column(Integer, primary_key=True, index=True)
     execucao_teste_id = Column(Integer, ForeignKey("execucoes_teste.id"), nullable=False)
     titulo = Column(String(255), nullable=False)
-    descricao = Column(Text, nullable=False)
+    descricao = Column(Text, nullable=False)    
     evidencias = Column(Text)
-    
+    logs_erro = Column(Text, nullable=True) 
     severidade = Column(Enum(SeveridadeDefeitoEnum, name='severidade_defeito_enum', create_type=False), nullable=False)
     status = Column(Enum(StatusDefeitoEnum, name='status_defeito_enum', create_type=False), default=StatusDefeitoEnum.aberto)
     

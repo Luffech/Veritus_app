@@ -95,3 +95,24 @@
   border-color: #e2e8f0;
   color: #cbd5e1;
 }
+
+/* Classes extras para a tabela */
+.selectable-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.selectable-row:hover {
+    background-color: #f8fafc;
+}
+
+/* Status Badges */
+.badge-status-aberto { background-color: #fee2e2; color: #991b1b; } /* Vermelho */
+.badge-status-corrigido { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; } /* Azul (Importante para ver o reteste) */
+.badge-status-fechado { background-color: #dcfce7; color: #166534; } /* Verde */
+.badge-status-rejeitado { background-color: #f1f5f9; color: #64748b; text-decoration: line-through; }
+
+/* Severidade Badges */
+.badge-sev-critico { background-color: #7f1d1d; color: white; }
+.badge-sev-alto { background-color: #b91c1c; color: white; }
+.badge-sev-medio { background-color: #f59e0b; color: white; }
+.badge-sev-baixo { background-color: #10b981; color: white; }

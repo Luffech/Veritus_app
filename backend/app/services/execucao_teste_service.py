@@ -39,28 +39,20 @@ class ExecucaoTesteService:
             return None
         return ExecucaoTesteResponse.model_validate(execucao)
 
-    # --- LÓGICA DE ATUALIZAÇÃO AUTOMÁTICA ---
     async def registrar_resultado_passo(self, passo_id: int, dados: ExecucaoPassoUpdate):
-        # 1. Atualiza o passo
         passo = await self.repo.get_execucao_passo(passo_id)
         if not passo:
              raise HTTPException(status_code=404, detail="Passo da execução não encontrado")
         
         atualizado = await self.repo.update_passo(passo_id, dados)
         
-        # 2. Recalcula o status do teste pai
+        # Recalcula o status geral com a NOVA regra (sem bloqueio automático)
         await self._calcular_status_automatico(atualizado.execucao_teste_id)
 
         return ExecucaoPassoResponse.model_validate(atualizado)
     
+    # --- LÓGICA CORRIGIDA ---
     async def _calcular_status_automatico(self, execucao_id: int):
-        """
-        Regra:
-        1. 1 Reprovado -> Teste FALHOU
-        2. 1 Bloqueado (e 0 reprovados) -> Teste BLOQUEADO
-        3. Todos Aprovados -> Teste PASSOU
-        4. Caso contrário -> EM PROGRESSO
-        """
         execucao = await self.repo.get_by_id(execucao_id)
         if not execucao or not execucao.passos_executados:
             return
@@ -68,19 +60,23 @@ class ExecucaoTesteService:
         passos = execucao.passos_executados
         
         tem_reprovado = any(p.status == StatusPassoEnum.reprovado for p in passos)
-        tem_bloqueado = any(p.status == StatusPassoEnum.bloqueado for p in passos)
         todos_aprovados = all(p.status == StatusPassoEnum.aprovado for p in passos)
-        tem_pendente = any(p.status == StatusPassoEnum.pendente for p in passos)
+        
+        # Verifica se tem passos pendentes OU bloqueados (ambos impedem o "Passou")
+        # Se um passo está "bloqueado", o teste não acabou, então continua "Em Progresso" para ser resolvido.
+        tem_pendencia = any(p.status in [StatusPassoEnum.pendente, StatusPassoEnum.bloqueado] for p in passos)
 
         novo_status = StatusExecucaoEnum.em_progresso
 
         if tem_reprovado:
+            # Regra 1: Se falhou um passo, falhou tudo. (Prioridade Máxima)
             novo_status = StatusExecucaoEnum.falhou
-        elif tem_bloqueado:
-            novo_status = StatusExecucaoEnum.bloqueado
         elif todos_aprovados:
+            # Regra 2: Só passa se TODOS estiverem OK.
             novo_status = StatusExecucaoEnum.passou
-        elif tem_pendente:
+        elif tem_pendencia:
+            # Regra 3: Se tem passo bloqueado ou pendente, e nenhum falhou, 
+            # o status geral fica EM PROGRESSO (aguardando resolução).
             novo_status = StatusExecucaoEnum.em_progresso
 
         if execucao.status_geral != novo_status:

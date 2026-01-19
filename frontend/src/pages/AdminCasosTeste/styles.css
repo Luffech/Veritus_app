@@ -312,3 +312,27 @@
   border-color: #e2e8f0;
   color: #cbd5e1;
 }
+
+.status-ativo {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.status-rascunho {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #e5e7eb;
+    border-style: dashed;
+}
+
+.status-obsoleto {
+    background-color: #fee2e2;
+    color: #991b1b;
+    text-decoration: line-through;
+}
+
+.status-revisao {
+    background-color: #ffedd5;
+    color: #9a3412;
+}

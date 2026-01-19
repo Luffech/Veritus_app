@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 
 from app.core.database import get_db
 from app.services.defeito_service import DefeitoService
@@ -8,14 +8,13 @@ from app.schemas.defeito import DefeitoCreate, DefeitoResponse, DefeitoUpdate
 from app.models.usuario import Usuario 
 from app.api.deps import get_current_user
 
-# Inicializa o roteador para os endpoints de gerenciamento de defeitos.
+# --- ESTA LINHA É CRÍTICA ---
 router = APIRouter()
+# ----------------------------
 
-# Função auxiliar que injeta o serviço de defeitos pronto para uso com a sessão do banco.
 def get_service(db: AsyncSession = Depends(get_db)) -> DefeitoService:
     return DefeitoService(db)
 
-# Registra um novo defeito no sistema e retorna os dados criados.
 @router.post("/", response_model=DefeitoResponse, status_code=status.HTTP_201_CREATED)
 async def criar_defeito(
     dados: DefeitoCreate, 
@@ -23,7 +22,6 @@ async def criar_defeito(
 ):
     return await service.registrar_defeito(dados)
 
-# Lista todos os defeitos vinculados a uma execução de teste específica.
 @router.get("/execucao/{execucao_id}", response_model=List[DefeitoResponse])
 async def listar_defeitos_execucao(
     execucao_id: int, 
@@ -31,15 +29,14 @@ async def listar_defeitos_execucao(
 ):
     return await service.listar_por_execucao(execucao_id)
 
-# Retorna a lista completa de defeitos visíveis para o usuário logado.
 @router.get("/", response_model=List[DefeitoResponse])
 async def listar_todos_defeitos(
+    responsavel_id: Optional[int] = Query(None, description="Filtrar por ID do responsável"),
     current_user: Usuario = Depends(get_current_user),
     service: DefeitoService = Depends(get_service)
 ):
-    return await service.listar_todos(current_user)
+    return await service.listar_todos(current_user, filtro_responsavel_id=responsavel_id)
 
-# Atualiza os dados de um defeito existente pelo ID, lançando erro se não encontrado.
 @router.put("/{id}", response_model=DefeitoResponse)
 async def atualizar_defeito(
     id: int, 
@@ -59,4 +56,3 @@ async def excluir_defeito(
     sucesso = await service.excluir_defeito(id)
     if not sucesso:
         raise HTTPException(status_code=404, detail="Defeito não encontrado")
-    return

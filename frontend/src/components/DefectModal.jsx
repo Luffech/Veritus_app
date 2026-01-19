@@ -1,93 +1,210 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { api } from '../services/api'; 
+import './DefectModal.css';
 
+export function DefectModal({ isOpen, onClose, defect, onUpdate, readOnly = false }) {
+  if (!isOpen || !defect) return null;
 
-export function DefectModal({ isOpen, onClose, onConfirm }) {
-  const INITIAL_FORM = { 
-    titulo: '', 
-    descricao: '', 
-    severidade: 'medio' 
+  const [loading, setLoading] = useState(false);
+  const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
+  const [pendingDownload, setPendingDownload] = useState(null);
+
+  // Formata a data para PT-BR
+  const formattedDate = defect.created_at 
+    ? new Date(defect.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' })
+    : '-';
+
+  const forceDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-cache' });
+      if (!response.ok) throw new Error('Erro rede');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      alert("Erro ao baixar automaticamente. Tente salvar manualmente.");
+    }
   };
 
-  const [form, setForm] = useState(INITIAL_FORM);
-
-  
-  useEffect(() => {
-    if (isOpen) setForm(INITIAL_FORM);
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onConfirm(form);
+  const handleEvidenceClick = (e, url, index) => {
+    e.preventDefault(); e.stopPropagation();
+    setPendingDownload({ url, index });
+    setShowDownloadConfirm(true);
   };
+
+  const confirmDownload = () => {
+    if (!pendingDownload) return;
+    const { url, index } = pendingDownload;
+    const ext = url.split('.').pop().split('?')[0] || 'jpg';
+    const filename = `Evidencia_Defeito_${defect.id}_${index + 1}.${ext}`;
+    forceDownload(url, filename);
+    setShowDownloadConfirm(false);
+    setPendingDownload(null);
+  };
+
+  const cancelDownload = () => { setShowDownloadConfirm(false); setPendingDownload(null); };
+
+  const handleStatusChange = async (novoStatus) => {
+    setLoading(true);
+    try {
+      await api.put(`/defeitos/${defect.id}`, { status: novoStatus });
+      if (onUpdate) onUpdate(); 
+      onClose(); 
+    } catch (error) { alert("Erro ao atualizar."); } finally { setLoading(false); }
+  };
+
+  const evidencias = (() => {
+    if (!defect.evidencias) return [];
+    if (Array.isArray(defect.evidencias)) return defect.evidencias;
+    try { return JSON.parse(defect.evidencias); } catch { return []; }
+  })();
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      backdropFilter: 'blur(2px)'
-    }} onClick={onClose}>
-      
-      <div 
-        className="card" 
-        style={{ width: '500px', maxWidth: '90%', margin: 0, animation: 'fadeIn 0.2s ease-out' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <h3 style={{ marginTop: 0, color: '#1E293B' }}>Registrar Ocorrência</h3>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content defect-dashboard" onClick={e => e.stopPropagation()}>
         
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: '15px' }}>
+        {/* --- MODAL CONFIRM DOWNLOAD --- */}
+        {showDownloadConfirm && (
+            <div className="download-confirm-overlay" onClick={cancelDownload}>
+                <div className="download-confirm-box" onClick={e => e.stopPropagation()}>
+                    <h3>Baixar Arquivo?</h3>
+                    <p style={{color: '#64748b', margin: '10px 0 20px'}}>O arquivo será salvo no seu computador.</p>
+                    <div className="confirm-actions">
+                        <button className="btn-blue ghost" onClick={cancelDownload}>Cancelar</button>
+                        <button className="btn-blue primary" onClick={confirmDownload}>Sim, Baixar</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* --- HEADER --- */}
+        <div className="defect-header">
+          <div className="header-left">
+            <span className={`badge-pill ${defect.severidade}`}>
+              {defect.severidade?.toUpperCase() || "MÉDIO"}
+            </span>
+            <span className="defect-id">#{defect.id}</span>
+          </div>
+          <button className="close-btn" onClick={onClose}>&times;</button>
+        </div>
+
+        {/* --- BODY --- */}
+        <div className="defect-body">
+          
+          <div className="defect-main-info">
+            <h1 className="defect-title">{defect.titulo || defect.nome || "Defeito sem título"}</h1>
             
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>Título do Erro</label>
-              <input 
-                required 
-                placeholder="Ex: Botão não responde..." 
-                value={form.titulo} 
-                onChange={e => setForm({...form, titulo: e.target.value})} 
-                style={{ width: '100%' }}
-              />
+            {/* GRID DE INFORMAÇÕES (Agora com Data e Responsáveis) */}
+            <div className="context-grid-container">
+                <div className="info-grid">
+                    <div className="info-item">
+                        <span className="info-label">Caso de Teste</span>
+                        <span className="info-value" title={defect.caso_teste_nome}>{defect.caso_teste_nome || "-"}</span>
+                    </div>
+                    <div className="info-item">
+                        <span className="info-label">Projeto</span>
+                        <span className="info-value">{defect.projeto_nome || "-"}</span>
+                    </div>
+                     {/* --- NOVA DATA --- */}
+                    <div className="info-item">
+                        <span className="info-label">Data Envio</span>
+                        <span className="info-value">{formattedDate}</span>
+                    </div>
+
+                    <div className="info-item">
+                        <span className="info-label">Tester (Runner)</span>
+                        <span className="info-value">{defect.responsavel_teste_nome || "-"}</span>
+                    </div>
+                    <div className="info-item">
+                        <span className="info-label">Gerente Projeto</span>
+                        <span className="info-value">{defect.responsavel_projeto_nome || "-"}</span>
+                    </div>
+                </div>
+
+                {(defect.passo_falha || defect.passo_descricao) && (
+                    <div className="failure-step-card">
+                        <div className="step-alert">
+                            <span className="step-icon">⚠️</span>
+                            <div className="step-content">
+                                <strong>Falha no Passo:</strong>
+                                <p>{defect.passo_falha || defect.passo_descricao}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>Severidade</label>
-              <select 
-                value={form.severidade} 
-                onChange={e => setForm({...form, severidade: e.target.value})}
-                style={{ width: '100%' }}
-              >
-                <option value="baixo">Baixo</option>
-                <option value="medio">Médio</option>
-                <option value="alto">Alto</option>
-                <option value="critico">Crítico</option>
-              </select>
-            </div>
+            <span className="section-label">Descrição do Problema</span>
+            <div className="description-text">{defect.descricao}</div>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 500 }}>Descrição Detalhada</label>
-              <textarea 
-                required 
-                rows="4" 
-                placeholder="Descreva os passos para reproduzir..." 
-                value={form.descricao} 
-                onChange={e => setForm({...form, descricao: e.target.value})} 
-                style={{ width: '100%', resize: 'vertical' }}
-              />
-            </div>
-
+            {defect.logs_erro && (
+              <>
+                <span className="section-label">Logs do Sistema</span>
+                <div className="logs-box">
+                  <pre>{defect.logs_erro}</pre>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" onClick={onClose} className="btn">Cancelar</button>
-            <button type="submit" className="btn danger">Registrar Falha</button>
+          <div className="defect-sidebar">
+            <div className="sidebar-title">Anexos ({evidencias.length})</div>
+            <div className="files-list">
+              {evidencias.length > 0 ? (
+                evidencias.map((url, idx) => (
+                  <div key={idx} className="file-card" onClick={(e) => handleEvidenceClick(e, url, idx)}>
+                    <img src={url} className="file-thumb" alt="" />
+                    <div className="file-meta">
+                        <span className="file-name">Evidência {idx + 1}</span>
+                        <span className="file-action">Clique para baixar</span>
+                    </div>
+                    <div className="download-icon">⬇</div>
+                  </div>
+                ))
+              ) : (
+                <div style={{color: '#94a3b8', fontStyle: 'italic', fontSize: '0.9rem'}}>Nenhum anexo.</div>
+              )}
+            </div>
           </div>
-        </form>
+        </div>
+
+        {/* --- FOOTER (BOTÕES AZUIS) --- */}
+        {!readOnly ? (
+            <div className="defect-footer">
+              <div className="status-indicator">
+                Status: <span className="status-badge-text">{defect.status?.toUpperCase()}</span>
+              </div>
+              
+              <div className="actions-group">
+                {defect.status === 'aberto' && (
+                  <>
+                    {/* Botões usando o estilo BLUE */}
+                    <button className="btn-blue ghost" onClick={() => handleStatusChange('rejeitado')} disabled={loading}>Rejeitar</button>
+                    <button className="btn-blue primary" onClick={() => handleStatusChange('corrigido')} disabled={loading}>Enviar p/ Reteste</button>
+                  </>
+                )}
+                {defect.status === 'corrigido' && (
+                  <>
+                    <button className="btn-blue secondary" onClick={() => handleStatusChange('aberto')}>Reprovar</button>
+                    <button className="btn-blue primary" onClick={() => handleStatusChange('fechado')}>Aprovar & Fechar</button>
+                  </>
+                )}
+                {(defect.status === 'fechado' || defect.status === 'rejeitado') && (
+                    <span style={{color: '#10b981', fontWeight: '600'}}>Processo Finalizado.</span>
+                )}
+              </div>
+            </div>
+        ) : (
+            <div className="defect-footer" style={{justifyContent: 'center', background: '#f8fafc'}}>
+                <div className="status-indicator">Modo Visualização</div>
+            </div>
+        )}
       </div>
     </div>
   );
