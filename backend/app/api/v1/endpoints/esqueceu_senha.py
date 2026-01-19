@@ -6,9 +6,10 @@ import uuid
 from datetime import datetime, timedelta
 
 from app.core.database import get_db
-from app.models.usuario import Usuario
 from app.models.password_reset import PasswordReset
 from app.services.email_service import send_reset_password_email
+from app.repositories.usuario_repository import UsuarioRepository
+from app.repositories.password_reset_repository import PasswordResetRepository
 
 router = APIRouter()
 
@@ -20,8 +21,11 @@ async def forgot_password(
     request: ForgotPasswordRequest, 
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(Usuario).filter(Usuario.email == request.email))
-    user = result.scalars().first()
+    
+    user_repo = UsuarioRepository(db)
+    reset_repo = PasswordResetRepository(db)
+
+    user = await user_repo.get_usuario_by_email(request.email)
     
     if not user:
         raise HTTPException(status_code=404, detail="E-mail não encontrado.")
@@ -35,8 +39,7 @@ async def forgot_password(
     )
     
     try:
-        db.add(new_reset)
-        await db.commit()
+        await reset_repo.create_token(new_reset)
         
         send_reset_password_email(request.email, token)
         

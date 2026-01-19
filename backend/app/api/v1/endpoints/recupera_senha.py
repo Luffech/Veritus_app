@@ -1,12 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from datetime import datetime
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from app.api.deps import get_db
-from app.models.usuario import Usuario
-from app.models.password_reset import PasswordReset
+from app.repositories.password_reset_repository import PasswordResetRepository
+from app.repositories.usuario_repository import UsuarioRepository
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -17,9 +16,9 @@ class ResetPasswordSchema(BaseModel):
 
 @router.get("/validate")
 async def validate_token(token: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PasswordReset).filter(PasswordReset.token == token))
-    reset_entry = result.scalars().first()
-    
+    reset_repo = PasswordResetRepository(db)
+    reset_entry = await reset_repo.get_by_token(token)
+
     if not reset_entry or reset_entry.expira_em < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Token inválido ou expirado.")
     
@@ -27,21 +26,21 @@ async def validate_token(token: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/confirm")
 async def reset_password_confirm(data: ResetPasswordSchema, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PasswordReset).filter(PasswordReset.token == data.token))
-    reset_entry = result.scalars().first()
-    
+    reset_repo = PasswordResetRepository(db)
+    user_repo = UsuarioRepository(db)
+
+    reset_entry = await reset_repo.get_by_token(data.token)
+
     if not reset_entry or reset_entry.expira_em < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Token inválido ou expirado.")
     
-    user_result = await db.execute(select(Usuario).filter(Usuario.id == reset_entry.id_usuario))
-    user = user_result.scalars().first()
+    user = await user_repo.get_usuario_by_id(reset_entry.id_usuario)
     
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado.")
     
-    user.senha_hash = pwd_context.hash(data.new_password)
-    
-    await db.delete(reset_entry)
-    await db.commit()
+    new_password_hash = pwd_context.hash(data.new_password)
+    await user_repo.update_usuario(user.id, {"senha_hash": new_password_hash})
+    await reset_repo.delete_token(reset_entry.id)
     
     return {"message": "Senha atualizada com sucesso!"}
