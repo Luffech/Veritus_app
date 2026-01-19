@@ -1,8 +1,8 @@
-"""create password reset table
+"""initial_schema
 
-Revision ID: f670f6c8539d
-Revises: de4fecd62a71
-Create Date: 2026-01-15 18:41:31.035271
+Revision ID: 5908458bac38
+Revises: d465eaf545d6
+Create Date: 2026-01-19 14:59:14.466863
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f670f6c8539d'
-down_revision: Union[str, None] = 'de4fecd62a71'
+revision: str = '5908458bac38'
+down_revision: Union[str, None] = 'd465eaf545d6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
