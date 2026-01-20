@@ -5,7 +5,6 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 from app.models.usuario import Usuario
 
-# Enums para padronizar status e prioridades em todo o fluxo de QA.
 class PrioridadeEnum(str, enum.Enum):
     alta = "alta"
     media = "media"
@@ -16,8 +15,6 @@ class StatusExecucaoEnum(str, enum.Enum):
     em_progresso = "em_progresso"
     reteste = "reteste"
     fechado = "fechado"
-    # Mantive bloqueado apenas para segurança de tipo, caso precise no futuro.
-    # Se tiver certeza absoluta que não usa, pode remover, mas recomendo deixar.
     bloqueado = "bloqueado" 
 
 class StatusPassoEnum(str, enum.Enum):
@@ -47,10 +44,10 @@ class SeveridadeDefeitoEnum(str, enum.Enum):
     bajo = "baixo"
 
 class StatusCasoTesteEnum(str, enum.Enum):
-    rascunho = "rascunho"     # Ainda sendo escrito
-    ativo = "ativo"           # Pronto para usar em ciclos
-    obsoleto = "obsoleto"     # Antigo, não usar mais
-    revisao = "revisao"       # Precisa de ajuste
+    rascunho = "rascunho"   
+    ativo = "ativo"           
+    obsoleto = "obsoleto"     
+    revisao = "revisao"       
 
 # Ciclos de Teste
 class CicloTeste(Base):

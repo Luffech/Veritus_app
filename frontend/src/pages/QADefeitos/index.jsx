@@ -127,7 +127,15 @@ export function QADefeitos() {
   const filteredSevHeader = sevOptions.filter(o => o.label.toLowerCase().includes(sevSearchText.toLowerCase()));
   const filteredRespHeader = usuarios.filter(u => u.nome.toLowerCase().includes(respSearchText.toLowerCase())).slice(0, 5);
 
-  const getRespName = (id) => { const u = usuarios.find(user => String(user.id) == String(id)); return u ? u.nome : '-'; };
+  const getRespName = (defeito) => {
+    if (defeito.responsavel_teste_nome) return defeito.responsavel_teste_nome;
+    if (defeito.responsavel?.nome) return defeito.responsavel.nome;
+    const idParaBuscar = defeito.responsavel_id;
+    if (!idParaBuscar) return '-';
+    
+    const u = usuarios.find(user => String(user.id) === String(idParaBuscar));
+    return u ? u.nome : '-';
+  };
   const getStatusBadge = (s) => `badge-status-${s}`;
   const getSeveridadeBadge = (s) => `badge-sev-${s}`;
 
@@ -226,7 +234,7 @@ export function QADefeitos() {
                                         </td>
                                         <td style={{textAlign: 'center'}}><span className={`badge ${getSeveridadeBadge(d.severidade)}`}>{d.severidade ? d.severidade.toUpperCase() : '-'}</span></td>
                                         <td style={{textAlign: 'center'}}><span className={`badge ${getStatusBadge(d.status)}`}>{d.status ? d.status.toUpperCase() : '-'}</span></td>
-                                        <td><span className="cell-resp">{d.responsavel_id ? truncate(getRespName(d.responsavel_id), 15) : <span style={{color:'#cbd5e1'}}>-</span>}</span></td>
+                                        <td><span className="cell-resp">{truncate(getRespName(d), 15)}</span></td>
                                         <td style={{textAlign: 'right', fontSize: '0.85rem'}}>{new Date(d.created_at).toLocaleDateString()}</td>
                                     </tr>
                                 ))

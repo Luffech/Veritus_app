@@ -22,7 +22,6 @@ export function ExecutionPlayer({
         <div>
           <h2>{execution.caso_teste?.nome}</h2>
           <p className={styles.description}>{execution.caso_teste?.descricao}</p>
-          {/* Badge de Status Geral */}
           {readOnly && (
              <span className={`badge-pill ${execution.status_geral === 'passou' ? 'baixo' : 'critico'}`} style={{marginTop:'8px', display:'inline-block'}}>
                 {execution.status_geral.toUpperCase()}
@@ -30,11 +29,10 @@ export function ExecutionPlayer({
           )}
         </div>
         
-        {/* Botão Finalizar ou Visualizar */}
         <button 
             className={styles.btnFinish} 
             onClick={onFinish}
-            disabled={readOnly} // Desabilita se já finalizou
+            disabled={readOnly}
             style={{ opacity: readOnly ? 0.5 : 1, cursor: readOnly ? 'not-allowed' : 'pointer' }}
         >
           {readOnly ? 'Tarefa Concluída' : 'Finalizar Tarefa'}
@@ -44,7 +42,6 @@ export function ExecutionPlayer({
       <div className={styles.stepsContainer}>
         {passosOrdenados.map((passo, index) => {
           const status = passo.status || 'pendente';
-          // Evidências
           const evidencias = passo.evidencias || []; 
           const hasEvidences = Array.isArray(evidencias) && evidencias.length > 0;
 
@@ -78,7 +75,6 @@ export function ExecutionPlayer({
                 </div>
               )}
 
-              {/* Botões de Ação - Somem ou desabilitam se ReadOnly */}
               {!readOnly && (
                   <div className={styles.stepActions}>
                     <button 

@@ -8,9 +8,7 @@ from app.schemas.defeito import DefeitoCreate, DefeitoResponse, DefeitoUpdate
 from app.models.usuario import Usuario 
 from app.api.deps import get_current_user
 
-# --- ESTA LINHA É CRÍTICA ---
 router = APIRouter()
-# ----------------------------
 
 def get_service(db: AsyncSession = Depends(get_db)) -> DefeitoService:
     return DefeitoService(db)

@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom'; // Importante para o Portal
+import ReactDOM from 'react-dom'; 
 import './EvidenceGallery.css';
 
 export function EvidenceGallery({ images, onClose }) {
@@ -7,7 +7,6 @@ export function EvidenceGallery({ images, onClose }) {
 
   const imageList = Array.isArray(images) ? images : [images];
 
-  // Cria o Portal para renderizar direto no body do HTML
   return ReactDOM.createPortal(
     <div className="gallery-overlay" onClick={onClose}>
       <div className="gallery-content" onClick={e => e.stopPropagation()}>

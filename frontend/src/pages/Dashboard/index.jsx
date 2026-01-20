@@ -11,7 +11,6 @@ import { api } from '../../services/api';
 import './styles.css'; 
 import { SmartTable } from '../../components/SmartTable';
 
-// --- Mapeamento de Cores ---
 const STATUS_COLORS = {
   'passou': '#10b981', 'falhou': '#ef4444', 'bloqueado': '#f59e0b', 
   'pendente': '#94a3b8', 'em_progresso': '#3b82f6', 'reteste': '#f59e0b', 'fechado': '#10b981'
@@ -33,14 +32,12 @@ export function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // --- ESTADOS DO FILTRO DE SISTEMA ---
   const [sistemas, setSistemas] = useState([]);
   const [selectedSystem, setSelectedSystem] = useState(null); 
   const [systemSearch, setSystemSearch] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // --- ESTADOS DO MODAL ---
   const [activeDetail, setActiveDetail] = useState(null);
   const [detailsData, setDetailsData] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -48,7 +45,6 @@ export function Dashboard() {
   const { error } = useSnackbar();
   const navigate = useNavigate(); 
 
-  // Fecha dropdown ao clicar fora
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -59,14 +55,12 @@ export function Dashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 1. Carrega a lista de sistemas ao iniciar
   useEffect(() => {
     api.get('/sistemas/')
        .then(resp => setSistemas(Array.isArray(resp) ? resp : []))
        .catch(() => error("Erro ao carregar sistemas."));
   }, [error]);
 
-  // 2. Carrega Dashboard (Recarrega quando selectedSystem muda)
   useEffect(() => {
     async function loadDashboard() {
       setLoading(true);
@@ -83,12 +77,10 @@ export function Dashboard() {
     loadDashboard();
   }, [selectedSystem, error]);
 
-  // Lógica de busca e limitação do Dropdown (Top 5)
   const filteredSistemas = sistemas
     .filter(s => s.nome.toLowerCase().includes(systemSearch.toLowerCase()))
     .slice(0, 5);
 
-  // --- BUSCA DADOS REAIS PARA O MODAL ---
   const fetchProjectsList = async () => {
       setLoadingDetails(true);
       try {
@@ -106,7 +98,6 @@ export function Dashboard() {
       if (activeDetail === 'projetos') fetchProjectsList(); 
   }, [activeDetail]);
 
-  // --- COLUNAS DA TABELA DE PROJETOS ---
   const colunasProjetos = [
     { header: 'ID', accessor: 'id', width: '50px' },
     { header: 'Nome do Projeto', accessor: 'nome' },
@@ -149,7 +140,6 @@ export function Dashboard() {
   return (
     <main className="container dashboard-container">
       
-      {/* --- HEADER COM TÍTULO E DROPDOWN DE SISTEMAS --- */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 className="section-title" style={{ margin: 0 }}>Visão Geral</h2>
 
@@ -197,7 +187,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* --- GRID DE KPIS --- */}
       <div className="kpi-grid">
         <div onClick={() => setActiveDetail('projetos')} style={{ cursor: 'pointer' }}>
           <KpiCard value={safeData.kpis.total_projetos || 0} label="PROJETOS ATIVOS" color="#3b82f6" gradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)" />
@@ -211,7 +200,6 @@ export function Dashboard() {
         <KpiCard value={safeData.kpis.total_aguardando_reteste || 0} label="AGUARDANDO RETESTE" color="#6366f1" gradient="linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)" />
       </div>
 
-      {/* --- GRÁFICOS --- */}
       <div className="charts-grid">
         <div className="chart-card">
           <h3 className="chart-title">Status de Execução</h3>
@@ -244,7 +232,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* --- MODAL DE DETALHES --- */}
       {activeDetail === 'projetos' && (
         <div className="dash-modal-overlay" onClick={() => setActiveDetail(null)}>
            <div className="dash-modal-content" onClick={e => e.stopPropagation()}>
