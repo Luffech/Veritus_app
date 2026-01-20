@@ -8,10 +8,9 @@ export function RegisterDefectModal({ isOpen, onClose, onConfirm, initialData })
     severidade: 'medio'
   });
   
-  const [files, setFiles] = useState([]); // Novos arquivos para upload
-  const [existingImages, setExistingImages] = useState([]); // URLs já salvas (modo edição)
+  const [files, setFiles] = useState([]); 
+  const [existingImages, setExistingImages] = useState([]); 
 
-  // --- EFEITO: CARREGAR DADOS NA EDIÇÃO ---
   useEffect(() => {
     if (isOpen && initialData) {
       setFormData({
@@ -20,7 +19,6 @@ export function RegisterDefectModal({ isOpen, onClose, onConfirm, initialData })
         severidade: initialData.severidade || 'medio'
       });
       
-      // Se tiver evidências salvas (URLs), carrega elas
       let loadedImages = [];
       try {
         const ev = initialData.evidencias;
@@ -29,7 +27,6 @@ export function RegisterDefectModal({ isOpen, onClose, onConfirm, initialData })
       setExistingImages(loadedImages);
       
     } else if (isOpen) {
-      // Modo Novo: Limpa tudo
       setFormData({ titulo: '', descricao: '', severidade: 'medio' });
       setFiles([]);
       setExistingImages([]);
@@ -43,10 +40,8 @@ export function RegisterDefectModal({ isOpen, onClose, onConfirm, initialData })
       alert("Por favor, preencha título e descrição.");
       return;
     }
-    // Envia tudo: dados, novos arquivos E as imagens antigas que sobraram
     onConfirm({ ...formData, files, existingImages }); 
     
-    // Limpa
     setFormData({ titulo: '', descricao: '', severidade: 'medio' });
     setFiles([]);
     setExistingImages([]);
@@ -100,10 +95,10 @@ export function RegisterDefectModal({ isOpen, onClose, onConfirm, initialData })
               value={formData.severidade}
               onChange={e => setFormData({...formData, severidade: e.target.value})}
             >
-              <option value="baixo">🟢 Baixo</option>
-              <option value="medio">🟡 Médio</option>
-              <option value="alto">🟠 Alto</option>
-              <option value="critico">🔴 Crítico</option>
+              <option value="baixo">Baixo</option>
+              <option value="medio">Médio</option>
+              <option value="alto">Alto</option>
+              <option value="critico">Crítico</option>
             </select>
           </div>
 
@@ -111,15 +106,12 @@ export function RegisterDefectModal({ isOpen, onClose, onConfirm, initialData })
             <label className="form-label">Evidências (Máx: 3)</label>
             
             <div className="selected-files-list">
-                {/* Imagens Já Salvas (Edição) */}
                 {existingImages.map((url, index) => (
                     <div key={`existing-${index}`} className="file-item-badge" style={{borderColor: '#10b981', color: '#047857', background: '#ecfdf5'}}>
                         <span className="file-name-truncate">Imagem Salva {index + 1}</span>
                         <button onClick={() => removeExistingImage(index)} className="btn-remove-file">×</button>
                     </div>
                 ))}
-
-                {/* Novos Arquivos */}
                 {files.map((file, index) => (
                     <div key={`new-${index}`} className="file-item-badge">
                         <span className="file-name-truncate">{file.name}</span>
