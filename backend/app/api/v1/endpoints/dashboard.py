@@ -13,4 +13,5 @@ async def get_dashboard(
     current_user = Depends(get_current_user)
 ):
     service = DashboardService(db)
+    
     return await service.get_dashboard_data()

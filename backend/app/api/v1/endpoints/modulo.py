@@ -1,15 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence
-
-# Reutilizamos a dependência da sessão do banco de dados
 from .sistemas import get_db_session 
 from app.schemas import ModuloCreate, ModuloResponse, ModuloUpdate
 from app.services.modulo_service import ModuloService
 
 router = APIRouter()
 
-# Dependência para obter o serviço de Módulo
 def get_modulo_service(db: AsyncSession = Depends(get_db_session)) -> ModuloService:
     return ModuloService(db)
 

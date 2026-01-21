@@ -19,6 +19,7 @@ async def get_current_user(
     token: Annotated[str, Depends(reusable_oauth2)],
     db: AsyncSession = Depends(get_db)
 ) -> Usuario:
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não foi possível validar as credenciais",
@@ -29,18 +30,21 @@ async def get_current_user(
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
+        
         user_id_str: Optional[str] = payload.get("sub")
         if user_id_str is None:
             raise credentials_exception
+        
         try:
             user_id = int(user_id_str)
         except ValueError:
              raise credentials_exception
+             
         token_data = TokenPayload(sub=user_id)
+        
     except JWTError:
         raise credentials_exception
 
-    # --- CORREÇÃO AQUI: Carregar o nivel_acesso junto com o usuário ---
     query = select(Usuario).options(selectinload(Usuario.nivel_acesso)).where(Usuario.id == token_data.sub)
     result = await db.execute(query)
     user = result.scalars().first()

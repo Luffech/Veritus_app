@@ -12,6 +12,6 @@ class MetricaProjeto(BaseModel):
     total_casos: int
     casos_sucesso: int
     casos_falha: int
-    taxa_cobertura: float  # %
-    taxa_sucesso: float    # %
-    kpis: List[MetricaKPI] # Lista flexível para cards do dashboard
+    taxa_cobertura: float
+    taxa_sucesso: float
+    kpis: List[MetricaKPI]

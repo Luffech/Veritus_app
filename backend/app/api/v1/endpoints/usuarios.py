@@ -1,4 +1,3 @@
-# backend/app/api/v1/endpoints/usuarios.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence, Optional

@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 
-/* ==========================================================================
-   COMPONENTE: MODAL DE REGISTO DE DEFEITOS
-   Gerencia o formulário de reporte de bugs (título, descrição, severidade).
-   ========================================================================== */
+
 export function DefectModal({ isOpen, onClose, onConfirm }) {
   const INITIAL_FORM = { 
     titulo: '', 
@@ -13,7 +10,7 @@ export function DefectModal({ isOpen, onClose, onConfirm }) {
 
   const [form, setForm] = useState(INITIAL_FORM);
 
-  // Reseta o formulário sempre que o modal abre
+  
   useEffect(() => {
     if (isOpen) setForm(INITIAL_FORM);
   }, [isOpen]);
@@ -24,6 +21,8 @@ export function DefectModal({ isOpen, onClose, onConfirm }) {
     e.preventDefault();
     onConfirm(form);
   };
+
+  const isFormInvalid = !form.titulo.trim() || !form.descricao.trim();
 
   return (
     <div style={{
@@ -88,7 +87,14 @@ export function DefectModal({ isOpen, onClose, onConfirm }) {
 
           <div className="actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <button type="button" onClick={onClose} className="btn">Cancelar</button>
-            <button type="submit" className="btn danger">Registrar Falha</button>
+            <button
+              type="submit"
+              className="btn danger"
+              disabled={isFormInvalid} 
+              title={isFormInvalid ? "Preencha todos os campos" : ""}
+            >
+              Registrar Falha
+            </button>
           </div>
         </form>
       </div>

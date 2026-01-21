@@ -10,9 +10,8 @@ class MetricaService:
 
     async def gerar_metricas_execucao(self, projeto_id: int, ciclo_id: int):
         """
-        Gera métricas de execução baseadas no status atual dos testes do ciclo.
+        Calcula snapshot de qualidade do ciclo atual e salva histórico.
         """
-        # 1. Busca os dados brutos na tabela de Execução (Nova Arquitetura)
         stats = await self.repo.calcular_totais_por_ciclo(ciclo_id)
         
         total = stats.total or 0
@@ -20,10 +19,8 @@ class MetricaService:
         reprovados = stats.reprovados or 0
         executados = stats.executados or 0
 
-        # Evita divisão por zero
         taxa_sucesso = (aprovados / executados * 100) if executados > 0 else 0.0
 
-        # 2. Cria o registro de métrica
         nova_metrica = Metrica(
             projeto_id=projeto_id,
             ciclo_teste_id=ciclo_id,

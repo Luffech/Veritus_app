@@ -30,6 +30,7 @@ class UsuarioResponse(UsuarioBase):
     id: int
     created_at: datetime
     updated_at: datetime | None = None
+    
     nivel_acesso: Optional[NivelAcessoSimple] = None
     
     model_config = ConfigDict(from_attributes=True)

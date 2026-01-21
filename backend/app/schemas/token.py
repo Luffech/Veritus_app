@@ -9,4 +9,4 @@ class Token(BaseModel):
     role: str
 
 class TokenPayload(BaseModel):
-    sub: Optional[int] = None
+    sub: Optional[int] = None # ID do usuário

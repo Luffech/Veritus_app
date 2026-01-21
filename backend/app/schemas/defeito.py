@@ -27,4 +27,5 @@ class DefeitoResponse(DefeitoBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     execucao: Optional[ExecucaoTesteResponse] = None
+    
     model_config = ConfigDict(from_attributes=True)

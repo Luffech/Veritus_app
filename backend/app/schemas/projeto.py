@@ -7,6 +7,7 @@ class StatusProjeto(str, Enum):
     ativo = "ativo"
     pausado = "pausado"
     finalizado = "finalizado"
+
 class ProjetoBase(BaseModel):
     nome: str
     descricao: Optional[str] = None

@@ -19,10 +19,6 @@ services:
   backend:
     build: 
       context: ./backend
-      # Para controlar o build
-      args:
-        # Mude para 'true' se você tiver o nwrfcsdk.zip "ARQUIVO DO SAP"
-        - WITH_SAP=false
     env_file:
       - .env
     ports:
@@ -32,17 +28,6 @@ services:
       - ./backend/alembic:/code/alembic
       - ./backend/alembic.ini:/code/alembic.ini
       - ./backend/evidencias:/code/evidencias
-    environment:
-      # - DATABASE_URL=${DATABASE_URL}
-      # - PYTHONPATH=/code
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-
-      DATABASE_URL: ${DATABASE_URL}
-      # PYTHONPATH: /code
     depends_on:
       db:
         condition: service_healthy
@@ -61,6 +46,7 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4
     environment:

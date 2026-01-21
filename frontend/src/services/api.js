@@ -1,6 +1,3 @@
-// frontend/src/services/api.js
-
-// Lê a variável definida no docker-compose.yml
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
 export const getSession = () => ({
@@ -17,32 +14,54 @@ export const clearSession = () => {
 
 async function request(endpoint, options = {}) {
   const { token } = getSession();
+  
   const headers = new Headers(options.headers || {});
   
   if (token) headers.append("Authorization", `Bearer ${token}`);
-  headers.append("Content-Type", "application/json");
+  
+  const isFormData = options.body instanceof FormData || options.body instanceof URLSearchParams;
+  
+  if (!headers.has("Content-Type") && !isFormData) {
+    headers.append("Content-Type", "application/json");
+  }
 
   const config = {
     ...options,
     headers,
   };
 
-  // Garante que o endpoint começa com / se não for um URL completo
   const url = endpoint.startsWith("http") ? endpoint : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
   try {
     const response = await fetch(url, config);
     
-    if (response.status === 401 || response.status === 403) {
+  
+    const isLoginRequest = url.includes("/login");
+
+    if ((response.status === 401 || response.status === 403) && !isLoginRequest) {
       clearSession();
       throw new Error("Sessão expirada.");
     }
 
-    // Tenta fazer parse do JSON, mas não falha se não houver corpo (ex: 204 No Content)
-    const data = response.status !== 204 ? await response.json().catch(() => ({})) : {};
+    let data = null;
+    const contentType = response.headers.get("content-type");
+
+    if (response.status !== 204) {
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        data = { message: await response.text() };
+      }
+    } else {
+      data = {};
+    }
     
     if (!response.ok) {
-      throw new Error(data.detail || data.message || "Erro na requisição");
+        const errorMessage = data?.detail 
+            ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
+            : (data?.message || "Erro na requisição");
+            
+        throw new Error(errorMessage);
     }
 
     return data;
@@ -52,10 +71,33 @@ async function request(endpoint, options = {}) {
   }
 }
 
-// Exporta métodos simplificados como no seu script original, mas modernizados
 export const api = {
-  get: (endpoint) => request(endpoint, { method: "GET" }),
-  post: (endpoint, body) => request(endpoint, { method: "POST", body: JSON.stringify(body) }),
-  put: (endpoint, body) => request(endpoint, { method: "PUT", body: JSON.stringify(body) }),
-  delete: (endpoint, body) => request(endpoint, { method: "DELETE", body: JSON.stringify(body) }),
+  get: (endpoint, options = {}) => request(endpoint, { method: "GET", ...options }),
+  
+  post: (endpoint, body, options = {}) => {
+    const isBinary = body instanceof FormData || body instanceof URLSearchParams;
+    return request(endpoint, { 
+        method: "POST", 
+        body: isBinary ? body : JSON.stringify(body),
+        ...options 
+    });
+  },
+  
+  put: (endpoint, body, options = {}) => {
+    const isBinary = body instanceof FormData || body instanceof URLSearchParams;
+    return request(endpoint, { 
+        method: "PUT", 
+        body: isBinary ? body : JSON.stringify(body),
+        ...options 
+    });
+  },
+  
+  delete: (endpoint, body, options = {}) => {
+      const isBinary = body instanceof FormData || body instanceof URLSearchParams;
+      return request(endpoint, { 
+          method: "DELETE", 
+          body: body ? (isBinary ? body : JSON.stringify(body)) : null,
+          ...options 
+      });
+  },
 };
