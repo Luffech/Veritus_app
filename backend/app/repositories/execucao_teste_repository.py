@@ -3,8 +3,8 @@ from sqlalchemy.future import select
 from sqlalchemy import update
 from sqlalchemy.orm import selectinload
 from typing import Sequence, Optional
+import json # <--- Importar json
 
-# CORREÇÃO: Adicionado StatusPassoEnum na importação (MANTIDO DO HEAD)
 from app.models.testing import (
     ExecucaoTeste, ExecucaoPasso, PassoCasoTeste, 
     CasoTeste, StatusExecucaoEnum, StatusPassoEnum
@@ -52,8 +52,6 @@ class ExecucaoTesteRepository:
         await self.db.commit()
         return await self.get_by_id(nova_exec.id)
 
-    # RESOLUÇÃO: Mantida a estrutura de query do HEAD (que funciona com o front)
-    # mas adicionada a tipagem da MAIN -> Optional[ExecucaoTeste]
     async def get_by_id(self, id: int) -> Optional[ExecucaoTeste]:
         query = (
             select(ExecucaoTeste)
@@ -72,7 +70,6 @@ class ExecucaoTesteRepository:
         result = await self.db.execute(query)
         return result.scalars().first()
 
-    # RESOLUÇÃO: Mantida a lógica do HEAD, adicionada tipagem da MAIN
     async def get_minhas_execucoes(
         self, 
         usuario_id: int, 
@@ -107,11 +104,19 @@ class ExecucaoTesteRepository:
     async def get_execucao_passo(self, passo_id: int) -> Optional[ExecucaoPasso]:
         return await self.db.get(ExecucaoPasso, passo_id)
 
+    # --- CORREÇÃO AQUI ---
     async def update_passo(self, passo_id: int, data: ExecucaoPassoUpdate) -> Optional[ExecucaoPasso]:
         passo = await self.db.get(ExecucaoPasso, passo_id)
         
         if passo:
             update_data = data.model_dump(exclude_unset=True)
+            
+            # TRATAMENTO DE EVIDÊNCIAS: Se vier como lista, converte para JSON String
+            if 'evidencias' in update_data:
+                ev = update_data['evidencias']
+                if isinstance(ev, list):
+                    update_data['evidencias'] = json.dumps(ev)
+            
             for k, v in update_data.items():
                 setattr(passo, k, v)
             
@@ -127,7 +132,6 @@ class ExecucaoTesteRepository:
             
         return None
 
-    # Método original para update de status (mantido para compatibilidade interna)
     async def update_status_geral(self, exec_id: int, status: StatusExecucaoEnum) -> Optional[ExecucaoTeste]:
         return await self.update_status(exec_id, status)
 
@@ -136,12 +140,7 @@ class ExecucaoTesteRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
     
-    # --- MÉTODOS DE SINCRONIZAÇÃO DE STATUS ---
-    
-    # 1. Método principal usado pelo DefeitoService
-    # --- MÉTODO CORRIGIDO (COM RETORNO E SMART RETEST) ---
     async def update_status(self, id: int, status: StatusExecucaoEnum):
-        # 1. Atualiza o status geral da execução
         stmt = (
             update(ExecucaoTeste)
             .where(ExecucaoTeste.id == id)
@@ -150,13 +149,11 @@ class ExecucaoTesteRepository:
         )
         await self.db.execute(stmt)
 
-        # 2. SE FOR RETESTE: Reseta APENAS os passos reprovados
         if status == StatusExecucaoEnum.reteste:
             stmt_passos = (
                 update(ExecucaoPasso)
                 .where(
                     ExecucaoPasso.execucao_teste_id == id,
-                    # IMPORTANTE: Só reseta o que falhou. O que passou continua verde.
                     ExecucaoPasso.status == StatusPassoEnum.reprovado
                 )
                 .values(
@@ -171,6 +168,5 @@ class ExecucaoTesteRepository:
         
         return await self.get_by_id(id)
 
-    # 2. Alias para compatibilidade com o ExecucaoTesteService
     async def atualizar_status_geral(self, execucao_id: int, novo_status: StatusExecucaoEnum):
         return await self.update_status(execucao_id, novo_status)

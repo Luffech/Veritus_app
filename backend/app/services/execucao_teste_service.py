@@ -98,17 +98,29 @@ class ExecucaoTesteService:
             return ExecucaoTesteResponse.model_validate(execucao)
         return None
 
-    async def upload_evidencia(self, passo_id: int, file: UploadFile) -> str:
+    async def upload_evidencia(self, passo_id: int, file: UploadFile) -> dict:
         import shutil
         import os
+        import uuid
         
         os.makedirs("evidencias", exist_ok=True)
-        # Gera nome único para evitar colisão
-        filename = f"{passo_id}_{file.filename}"
-        file_path = f"evidencias/{filename}"
+        
+        # 1. Gerar nome seguro (UUID) para evitar caracteres inválidos na URL
+        extension = os.path.splitext(file.filename)[1]
+        if not extension:
+            extension = ".jpg"
+            
+        safe_filename = f"{passo_id}_{uuid.uuid4()}{extension}"
+        file_path = f"evidencias/{safe_filename}"
+        
+        # 2. Resetar o ponteiro do arquivo antes de ler
+        await file.seek(0)
         
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Retorna URL relativa ou absoluta conforme necessidade do front
-        return f"http://localhost:8000/{file_path}"
+        # 3. Retornar Dicionário compatível com o Frontend
+        # O Frontend espera: response.data.url
+        full_url = f"http://localhost:8000/evidencias/{safe_filename}"
+        
+        return {"url": full_url}

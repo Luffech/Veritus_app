@@ -45,7 +45,8 @@ export function ExecutionPlayer({
           const evidencias = passo.evidencias || []; 
           const hasEvidences = Array.isArray(evidencias) && evidencias.length > 0;
 
-          const isStepLocked = readOnly || status === 'aprovado';
+          // Sem isStepLocked complexo, apenas readOnly bloqueia
+          const isStepLocked = readOnly;
 
           return (
             <div key={passo.id} className={`${styles.stepCard} ${styles[status]}`}>
@@ -92,13 +93,7 @@ export function ExecutionPlayer({
                       {status === 'reprovado' ? 'Editar Falha' : 'Reprovar'}
                     </button>
                   </div>
-              )}
-              
-              {status === 'aprovado' && !readOnly && (
-                  <div style={{marginTop: '10px', fontSize: '0.8rem', color: '#166534', fontWeight: 'bold'}}>
-                      ✓ Passo já validado
-                  </div>
-              )}
+              )}            
             </div>
           );
         })}

@@ -29,7 +29,6 @@ export function QARunner() {
     isOpen: false, title: '', message: '', onConfirm: () => {}, isDanger: false
   });
 
-  // --- LÓGICA DE BLOQUEIO (READ-ONLY) ---
   const isReadOnly = activeExecucao && activeExecucao.status_geral === 'fechado';
 
   useEffect(() => { loadMinhasTarefas(); }, []);
@@ -66,23 +65,17 @@ export function QARunner() {
       try {
           const data = await api.get(`/testes/execucoes/${t.id}`);
           
-          // --- CORREÇÃO: Limpeza automática para Reteste ---
-          // Se a tarefa voltou como 'reteste', limpamos o lixo do localStorage da execução anterior (fechada)
-          // Isso garante que os passos não apareçam marcados incorretamente e a fila de defeitos esteja limpa.
           if (data.status_geral === 'reteste') {
               localStorage.removeItem(`queue_${t.id}`);
               localStorage.removeItem(`statuses_${t.id}`);
           }
-          // ------------------------------------------------
 
           setActiveExecucao(data);
-          
-          // Reinicia estados locais (o useEffect de recuperação não achará nada no localStorage se foi limpo acima)
+          // Reinicia estados visuais, mas o useEffect acima vai recuperar do localStorage se existir
           setDefectsQueue([]);
           setStepStatuses({});
           setDefectToEdit(null);
 
-          // Se estiver pendente, move para 'em_progresso' ao abrir
           if (data.status_geral === 'pendente') {
               await api.put(`/testes/execucoes/${t.id}/finalizar?status=em_progresso`);
               setTarefas(prev => prev.map(task => task.id === t.id ? {...task, status_geral: 'em_progresso'} : task));
@@ -91,47 +84,58 @@ export function QARunner() {
   };
   
   const handleStepAction = (passoId, acao) => {
-      if (isReadOnly) return; // Bloqueia ações se fechado
+      if (isReadOnly) return;
 
-      const currentStatus = stepStatuses[passoId];
-      if (currentStatus && currentStatus !== acao) {
+      const currentStatus = stepStatuses[passoId] || 
+                            activeExecucao.passos_executados.find(p => p.id === passoId)?.status || 
+                            'pendente';
+
+      if (currentStatus === 'aprovado' && acao === 'reprovado') {
           setConfirmModal({
               isOpen: true,
               title: "Alterar Resultado?",
-              message: `Mudar de "${currentStatus.toUpperCase()}" para "${acao.toUpperCase()}"?`,
+              message: `Este passo já foi marcado como APROVADO. Tem a certeza que deseja mudar para REPROVADO?`,
               isDanger: true,
               onConfirm: () => processStepAction(passoId, acao)
           });
           return;
       }
+
+      if (currentStatus === 'reprovado' && acao === 'aprovado') {
+          setConfirmModal({
+              isOpen: true,
+              title: "Alterar Resultado?",
+              message: `Este passo está marcado como REPROVADO. Tem a certeza que deseja mudar para APROVADO? O defeito associado será removido da fila.`,
+              isDanger: true, 
+              onConfirm: () => processStepAction(passoId, acao)
+          });
+          return;
+      }
+
       processStepAction(passoId, acao);
   };
 
   const processStepAction = async (passoId, acao) => {
+      // Atualiza apenas localmente (State + LocalStorage via useEffect)
       if (acao === 'aprovado') {
           setDefectsQueue(prev => prev.filter(d => d._passo_id_local !== passoId));
           setStepStatuses(prev => ({ ...prev, [passoId]: 'aprovado' }));
 
-          // Atualização Visual (Limpa imagens se houver)
+          // Atualiza visualmente o objeto activeExecucao para remover evidências antigas da UI
           setActiveExecucao(prev => ({
               ...prev,
               passos_executados: prev.passos_executados.map(p => 
                   p.id === passoId ? { ...p, evidencias: [] } : p
               )
           }));
-
-          // Limpeza no Backend
+          
+          // Opcional: Se quiseres limpar no backend IMEDIATAMENTE para garantir consistência em refresh
+          // Podes manter ou remover este bloco try/catch dependendo se queres 100% offline-first behavior
           try {
-              const passoAtual = activeExecucao.passos_executados.find(p => p.id === passoId);
-              if (passoAtual?.evidencias && passoAtual.evidencias !== '[]') {
-                  await api.put(`/testes/passos/${passoId}`, { evidencias: '[]' });
-              }
-          } catch (err) { console.error("Erro ao limpar backend", err); }
-
-          success("Passo marcado como Aprovado.");
+             await api.put(`/testes/execucoes/passos/${passoId}`, { status: 'aprovado', evidencias: '[]' });
+          } catch (e) { console.log("Update silencioso falhou, será enviado no final"); }
 
       } else {
-          // Edição: Se já existe defeito na fila, carrega para editar
           const existingDefect = defectsQueue.find(d => d._passo_id_local === passoId);
           setCurrentStepId(passoId);
           setDefectToEdit(existingDefect || null);
@@ -152,13 +156,13 @@ export function QARunner() {
                   return api.post(`/testes/passos/${currentStepId}/evidencia`, formData);
               });
               const responses = await Promise.all(uploadPromises);
-              novasEvidenciasUrls = responses.map(res => (res.data?.url || res.url)); 
+              novasEvidenciasUrls = responses.map(res => (res.data?.url || res.url)).filter(Boolean); 
           } catch { error("Erro ao enviar imagens."); }
       }
 
       const listaFinalEvidencias = [...(existingImages || []), ...novasEvidenciasUrls];
-      const evidenciasJSON = JSON.stringify(listaFinalEvidencias);
-
+      
+      // Atualiza UI
       setActiveExecucao(prev => ({
           ...prev,
           passos_executados: prev.passos_executados.map(p => 
@@ -166,9 +170,10 @@ export function QARunner() {
           )
       }));
 
+      const evidenciasJSON = JSON.stringify(listaFinalEvidencias);
+
       const passoAtual = activeExecucao.passos_executados.find(p => p.id === currentStepId);
       const nomeAcaoPasso = passoAtual?.passo_caso_teste?.acao || "Passo desconhecido";
-      
       const tituloCompleto = `${defectInfo.titulo} (Passo: ${nomeAcaoPasso})`;
 
       const newDefect = { 
@@ -182,15 +187,26 @@ export function QARunner() {
           _passo_id_local: currentStepId 
       };
 
+      // Guarda na Fila (LocalStorage)
       setDefectsQueue(prev => {
           const filtered = prev.filter(d => d._passo_id_local !== currentStepId);
           return [...filtered, newDefect];
       });
 
+      // Guarda Status (LocalStorage)
       setStepStatuses(prev => ({ ...prev, [currentStepId]: 'reprovado' }));
+      
+      // Envia update silencioso para persistir evidência em caso de F5
+      try {
+          await api.put(`/testes/execucoes/passos/${currentStepId}`, { 
+              status: 'reprovado',
+              evidencias: evidenciasJSON // Importante: Enviar como string JSON
+          });
+      } catch (e) { console.log("Update silencioso falhou"); }
+
       setIsDefectModalOpen(false);
       setDefectToEdit(null);
-      success("Falha registrada com o passo identificado.");
+      success("Falha registrada localmente.");
   };
 
   const requestFinishExecution = () => {
@@ -210,34 +226,41 @@ export function QARunner() {
     setConfirmModal({
         isOpen: true,
         title: "Finalizar Tarefa?",
-        message: `Resultado: ${resultadoTexto}. A tarefa será marcada como "FECHADO" e não poderá mais ser editada. Confirmar?`,
+        message: `Resultado: ${resultadoTexto}. A tarefa será marcada como "FECHADO". Confirmar?`,
         isDanger: !allPassed,
-        // Envia 'fechado' fixo, independente do resultado (conforme solicitado)
         onConfirm: () => finishExecutionConfirm('fechado') 
     });
   };
 
+  // --- CORREÇÃO DO ERRO 404 AQUI ---
   const finishExecutionConfirm = async (statusFinal) => {
       setLoading(true);
       try {
-          // 1. Enviar Defeitos
+          // 1. Cria os defeitos da fila
           for (const defect of defectsQueue) {
               const { _passo_id_local, ...payload } = defect;
               await api.post("/defeitos/", payload);
           }
 
-          // 2. Atualizar Passos
-          const stepPromises = Object.entries(stepStatuses).map(([passoId, status]) => 
-              api.put(`/testes/execucoes/passos/${passoId}`, { status })
-          );
+          // 2. Atualiza os Passos no Backend
+          // CRUCIAL: Filtra apenas IDs que pertencem à execução ativa para evitar 404
+          const validStepIds = new Set(activeExecucao.passos_executados.map(p => String(p.id)));
+          
+          const stepPromises = Object.entries(stepStatuses)
+              .filter(([passoId]) => validStepIds.has(String(passoId))) // Remove lixo do localStorage
+              .map(([passoId, status]) => 
+                  api.put(`/testes/execucoes/passos/${passoId}`, { status })
+              );
+          
           await Promise.all(stepPromises);
 
-          // 3. Finalizar com status 'fechado'
+          // 3. Finaliza a Execução
           await api.put(`/testes/execucoes/${activeExecucao.id}/finalizar?status=${statusFinal}`);
           
           setActiveExecucao(prev => ({ ...prev, status_geral: statusFinal }));
           success("Tarefa fechada com sucesso!");
           
+          // Limpa LocalStorage
           localStorage.removeItem(`queue_${activeExecucao.id}`);
           localStorage.removeItem(`statuses_${activeExecucao.id}`);
           setDefectsQueue([]);
@@ -251,13 +274,22 @@ export function QARunner() {
       } finally { setLoading(false); }
   };
 
+  // Garante que o player recebe array nas evidências para evitar quebra
   const executionWithLocalState = activeExecucao ? {
       ...activeExecucao,
-      passos_executados: activeExecucao.passos_executados.map(p => ({
+      passos_executados: activeExecucao.passos_executados.map(p => {
+        let ev = [];
+        try {
+            if(Array.isArray(p.evidencias)) ev = p.evidencias;
+            else if(typeof p.evidencias === 'string') ev = JSON.parse(p.evidencias || '[]');
+        } catch(e) { ev = [] }
+
+        return {
           ...p,
           status: stepStatuses[p.id] || p.status || 'pendente',
-          evidencias: typeof p.evidencias === 'string' ? JSON.parse(p.evidencias || '[]') : (p.evidencias || [])
-      }))
+          evidencias: ev
+        }
+      })
   } : null;
 
   return (
@@ -279,9 +311,12 @@ export function QARunner() {
           <TaskSidebar tasks={tarefas} loading={loading} activeExecId={activeExecucao?.id} onSelect={selectTask} />
           
           <ExecutionPlayer 
-              tasks={tarefas} execution={executionWithLocalState} 
-              onFinish={requestFinishExecution} onStepAction={handleStepAction} 
-              onDeleteEvidence={() => {}} // Delete manual bloqueado na player em modo edição
+              key={activeExecucao?.id} 
+              tasks={tarefas} 
+              execution={executionWithLocalState} 
+              onFinish={requestFinishExecution} 
+              onStepAction={handleStepAction} 
+              onDeleteEvidence={() => {}} 
               onViewGallery={setGalleryImages}
               readOnly={isReadOnly} 
           />

@@ -6,12 +6,18 @@ from app.models.testing import StatusDefeitoEnum, SeveridadeDefeitoEnum
 from .execucao_teste import ExecucaoTesteResponse
 
 class DefeitoBase(BaseModel):
+    # Permite que o frontend envie campos extras (como 'files') sem dar erro 422
+    model_config = ConfigDict(extra='ignore')
+
     titulo: str
     descricao: str
     # MANTIDO HEAD: Suporte a múltiplas evidências e validação JSON
     evidencias: Optional[Union[List[str], str]] = [] 
     severidade: SeveridadeDefeitoEnum = SeveridadeDefeitoEnum.medio
     status: StatusDefeitoEnum = StatusDefeitoEnum.aberto
+    
+    # Opcional para não quebrar a validação se o front não mandar no corpo,
+    # mas o backend precisa dele para ligar ao teste.
     execucao_teste_id: Optional[int] = None
 
     # --- VALIDADOR BLINDADO (Essencial para a galeria de imagens) ---
@@ -23,7 +29,8 @@ class DefeitoBase(BaseModel):
             return []
         # Caso 2: Já é lista (comportamento ideal do JSON)
         if isinstance(v, list):
-            return v
+            # Garante que é lista de strings
+            return [str(item) for item in v if isinstance(item, (str, int))]
         # Caso 3: Veio como string (JSON stringified ou texto puro do banco)
         if isinstance(v, str):
             try:
@@ -42,14 +49,16 @@ class DefeitoBase(BaseModel):
     @classmethod
     def normalize_severidade(cls, v: Any):
         if isinstance(v, str):
+            # Normaliza tudo para minúsculo para bater com o Enum 'medio', 'baixo', etc.
+            v = v.lower()
             # Mapeia erros comuns para o Enum correto
             mapa = {
-                "médio": "medio", "MÉDIO": "medio", "Medium": "medio",
-                "Crítico": "critico", "Critico": "critico", "Critical": "critico",
-                "Alto": "alto", "High": "alto",
-                "Baixo": "baixo", "Low": "baixo"
+                "médio": "medio", "medium": "medio",
+                "crítico": "critico", "critico": "critico", "critical": "critico",
+                "alto": "alto", "high": "alto",
+                "baixo": "baixo", "low": "baixo", "bajo": "baixo"
             }
-            return mapa.get(v, v.lower()) # Tenta corrigir ou retorna minúsculo
+            return mapa.get(v, v)
         return v
 
 class DefeitoCreate(DefeitoBase):
@@ -57,6 +66,8 @@ class DefeitoCreate(DefeitoBase):
     pass
 
 class DefeitoUpdate(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    
     titulo: Optional[str] = None
     descricao: Optional[str] = None
     evidencias: Optional[Union[List[str], str]] = None
