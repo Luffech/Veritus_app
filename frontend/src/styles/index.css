@@ -131,7 +131,7 @@ body {
   color: var(--white);
 }
 
-.sidebar nav a.active {
+.sidebar nav a.active, .nav-submenu a.active {
   background-color: rgba(30, 58, 138, 0.5);
   color: var(--white);
   font-weight: 600;
@@ -144,6 +144,33 @@ body {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
+}
+
+.nav-item-parent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.nav-item-parent:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--white);
+}
+
+.nav-submenu {
+  background-color: rgba(0, 0, 0, 0.2);
+  transition: max-height 0.3s ease-in-out;
+}
+
+.nav-submenu a {
+  padding-left: 35px !important;
+  font-size: 0.85rem !important;
+  border-left: 3px solid transparent;
 }
 
 .top-header {

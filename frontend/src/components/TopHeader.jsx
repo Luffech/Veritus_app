@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Logout } from './icons/Logout';
 
 export function TopHeader({ toggleSidebar }) {
   const { user, logout } = useAuth();
@@ -50,8 +51,13 @@ export function TopHeader({ toggleSidebar }) {
                 {primeiroNome}
               </span>
           </div>
-          <button onClick={logout} className="btn danger header-logout-btn">
-              Sair
+          <button
+            onClick={logout}
+            className="btn danger header-logout-btn"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+          <Logout />
+            Sair
           </button>
       </div>
     </header>
