@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, desc, case, or_
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 
 from app.models.modulo import Modulo
 from app.models.projeto import Projeto, StatusProjetoEnum
@@ -71,8 +72,7 @@ class DashboardRepository:
         if sistema_id:
             q_reteste = q_reteste.where(Projeto.sistema_id == sistema_id)
 
-        # --- 7. EXECUÇÕES PENDENTES E BLOQUEADAS ---
-        # Query base para execuções
+        # --- 7. EXECUCOES PENDENTES E BLOQUEADAS ---
         q_exec_base = (
             select(
                 func.sum(case((ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.pendente, StatusExecucaoEnum.em_progresso]), 1), else_=0)),
@@ -85,7 +85,7 @@ class DashboardRepository:
         if sistema_id:
             q_exec_base = q_exec_base.where(Projeto.sistema_id == sistema_id)
 
-        # --- 8. FINALIZADOS (Para taxa de sucesso) ---
+        # --- 8. FINALIZADOS ---
         q_finalizados = (
             select(func.count(ExecucaoTeste.id))
             .join(ExecucaoTeste.caso_teste)
@@ -95,7 +95,7 @@ class DashboardRepository:
         if sistema_id:
             q_finalizados = q_finalizados.where(Projeto.sistema_id == sistema_id)
 
-        # --- EXECUÇÃO DAS QUERIES ---
+        # execucao das queries
         total_projetos = (await self.db.execute(q_projetos)).scalar() or 0
         total_ciclos = (await self.db.execute(q_ciclos)).scalar() or 0
         total_casos = (await self.db.execute(q_casos)).scalar() or 0
@@ -106,16 +106,12 @@ class DashboardRepository:
         exec_stats = (await self.db.execute(q_exec_base)).first()
         pendentes = exec_stats[0] or 0
         bloqueados = exec_stats[1] or 0
-        aguardando_reteste_exec = exec_stats[2] or 0 # Execuções em reteste
+        aguardando_reteste_exec = exec_stats[2] or 0 
 
-        # Você pode decidir se usa defeitos corrigidos ou execuções em reteste para o KPI 'total_aguardando_reteste'
-        # Aqui somamos para garantir cobertura
         total_aguardando_reteste = total_reteste_def + aguardando_reteste_exec
         
         tot_fin = (await self.db.execute(q_finalizados)).scalar() or 0
         
-        # Cálculo da taxa (Finalizados / (Pendentes + Finalizados)) ou sobre o total
-        # Usando lógica simples: Concluídos / (Concluídos + Pendentes)
         denominador = pendentes + tot_fin
         taxa = round((tot_fin / denominador * 100), 1) if denominador > 0 else 0.0
 
@@ -178,26 +174,22 @@ class DashboardRepository:
         result = await self.db.execute(query)
         return result.all()
 
-    # --- MÉTODOS RUNNER (Convertidos para ORM) ---
+    # --- metodos do runner ---
     async def get_runner_kpis(self, runner_id: int) -> Dict[str, Any]:
-        # Concluídos (Fechado ou Bloqueado)
         q_concluidos = select(func.count(ExecucaoTeste.id)).where(
             ExecucaoTeste.responsavel_id == runner_id,
             ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.bloqueado])
         )
 
-        # Defeitos reportados pelo runner
         q_defeitos = select(func.count(Defeito.id)).join(Defeito.execucao).where(
             ExecucaoTeste.responsavel_id == runner_id
         )
 
-        # Fila (Pendentes)
         q_fila = select(func.count(ExecucaoTeste.id)).where(
             ExecucaoTeste.responsavel_id == runner_id,
             ExecucaoTeste.status_geral == StatusExecucaoEnum.pendente
         )
 
-        # Última atividade
         q_last = select(func.max(ExecucaoTeste.updated_at)).where(
             ExecucaoTeste.responsavel_id == runner_id
         )
@@ -210,7 +202,7 @@ class DashboardRepository:
         return {
             "total_concluidos": total_concluidos,
             "total_defeitos": total_defeitos,
-            "tempo_medio_minutos": 0.0, # Placeholder
+            "tempo_medio_minutos": 0.0,
             "total_fila": total_fila,
             "ultima_atividade": ultima_atividade
         }
@@ -224,7 +216,6 @@ class DashboardRepository:
         return result.all()
 
     async def get_runner_timeline(self, runner_id: Optional[int] = None, limit: int = 10):
-        # Para timeline, precisamos carregar os relacionamentos para exibir nomes
         from sqlalchemy.orm import selectinload
         
         query = (
@@ -250,3 +241,93 @@ class DashboardRepository:
         )
         result = await self.db.execute(query)
         return result.all()
+
+    # --- metodos de performance (novos) ---
+
+    async def get_performance_velocity(self, user_id: Optional[int] = None, days: int = 30) -> List[tuple]:
+        # usa a data de truncamento para agrupar por dia
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # convertendo para data simples para agrupar
+        query = (
+            select(
+                func.date(ExecucaoTeste.updated_at).label('date'), 
+                func.count(ExecucaoTeste.id)
+            )
+            .where(ExecucaoTeste.updated_at >= cutoff_date)
+            .group_by(func.date(ExecucaoTeste.updated_at))
+            .order_by(func.date(ExecucaoTeste.updated_at))
+        )
+
+        if user_id:
+            query = query.where(ExecucaoTeste.responsavel_id == user_id)
+
+        result = await self.db.execute(query)
+        return result.all()
+
+    async def get_top_offending_modules_perf(self, user_id: Optional[int] = None, limit: int = 5) -> List[tuple]:
+        # similar a logica existente mas especifica para falhas e bloqueios
+        query = (
+            select(Modulo.nome, func.count(ExecucaoTeste.id))
+            .select_from(ExecucaoTeste)
+            .join(ExecucaoTeste.caso_teste)
+            .join(CasoTeste.projeto)
+            .join(Projeto.modulo)
+            # CORRIGIDO: StatusExecucaoEnum.falha (em vez de falhou)
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
+            .group_by(Modulo.nome)
+            .order_by(desc(func.count(ExecucaoTeste.id)))
+            .limit(limit)
+        )
+
+        if user_id:
+            query = query.where(ExecucaoTeste.responsavel_id == user_id)
+
+        result = await self.db.execute(query)
+        return result.all()
+
+    async def get_team_stats_aggregates(self) -> Dict[str, Any]:
+        # 1. total de execucoes (status validos para calculo)
+        # CORRIGIDO: StatusExecucaoEnum.falha (em vez de falhou)
+        q_total_exec = select(func.count(ExecucaoTeste.id)).where(
+            ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado])
+        )
+        
+        # 2. execucoes aprovadas
+        q_passed = select(func.count(ExecucaoTeste.id)).where(ExecucaoTeste.status_geral == StatusExecucaoEnum.fechado)
+        
+        # 3. total de defeitos
+        q_defects = select(func.count(Defeito.id))
+
+        total_exec = (await self.db.execute(q_total_exec)).scalar() or 0
+        passed = (await self.db.execute(q_passed)).scalar() or 0
+        total_defects = (await self.db.execute(q_defects)).scalar() or 0
+
+        return {
+            "total_executions": total_exec,
+            "passed_executions": passed,
+            "total_defects": total_defects
+        }
+
+    async def get_user_stats_aggregates(self, user_id: int) -> Dict[str, Any]:
+        # 1. bugs reportados pelo usuario
+        q_bugs = select(func.count(Defeito.id)).where(Defeito.criado_por_id == user_id)
+
+        # 2. total execucoes do usuario
+        q_execs = select(func.count(ExecucaoTeste.id)).where(ExecucaoTeste.responsavel_id == user_id)
+
+        # 3. execucoes bloqueadas do usuario
+        q_blocked = select(func.count(ExecucaoTeste.id)).where(
+            ExecucaoTeste.responsavel_id == user_id,
+            ExecucaoTeste.status_geral == StatusExecucaoEnum.bloqueado
+        )
+
+        reported_bugs = (await self.db.execute(q_bugs)).scalar() or 0
+        total_execs = (await self.db.execute(q_execs)).scalar() or 0
+        blocked_execs = (await self.db.execute(q_blocked)).scalar() or 0
+
+        return {
+            "reported_bugs": reported_bugs,
+            "total_executions": total_execs,
+            "blocked_executions": blocked_execs
+        }
