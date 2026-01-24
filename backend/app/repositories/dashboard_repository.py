@@ -72,30 +72,22 @@ class DashboardRepository:
         if sistema_id:
             q_reteste = q_reteste.where(Projeto.sistema_id == sistema_id)
 
-        # --- 7. EXECUCOES PENDENTES E BLOQUEADAS ---
-        q_exec_base = (
+        # --- 7. STATUS DE EXECUÇÃO (Para KPIs e Taxas) ---
+        #  Passou (fechado), Falhou (falha) e Pendentes separadamente
+        q_exec_stats = (
             select(
-                func.sum(case((ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.pendente, StatusExecucaoEnum.em_progresso]), 1), else_=0)),
-                func.sum(case((ExecucaoTeste.status_geral == StatusExecucaoEnum.bloqueado, 1), else_=0)),
-                func.sum(case((ExecucaoTeste.status_geral == StatusExecucaoEnum.reteste, 1), else_=0))
+                func.sum(case((ExecucaoTeste.status_geral == StatusExecucaoEnum.fechado, 1), else_=0)), # Passou
+                func.sum(case((ExecucaoTeste.status_geral == StatusExecucaoEnum.falha, 1), else_=0)),   # Falhou
+                func.sum(case((ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.pendente, StatusExecucaoEnum.em_progresso]), 1), else_=0)), # Pendente
+                func.sum(case((ExecucaoTeste.status_geral == StatusExecucaoEnum.bloqueado, 1), else_=0)) # Bloqueado
             )
             .join(ExecucaoTeste.caso_teste)
             .join(CasoTeste.projeto)
         )
         if sistema_id:
-            q_exec_base = q_exec_base.where(Projeto.sistema_id == sistema_id)
+            q_exec_stats = q_exec_stats.where(Projeto.sistema_id == sistema_id)
 
-        # --- 8. FINALIZADOS ---
-        q_finalizados = (
-            select(func.count(ExecucaoTeste.id))
-            .join(ExecucaoTeste.caso_teste)
-            .join(CasoTeste.projeto)
-            .where(ExecucaoTeste.status_geral == StatusExecucaoEnum.fechado)
-        )
-        if sistema_id:
-            q_finalizados = q_finalizados.where(Projeto.sistema_id == sistema_id)
-
-        # execucao das queries
+        # EXECUÇÃO DAS QUERIES
         total_projetos = (await self.db.execute(q_projetos)).scalar() or 0
         total_ciclos = (await self.db.execute(q_ciclos)).scalar() or 0
         total_casos = (await self.db.execute(q_casos)).scalar() or 0
@@ -103,17 +95,18 @@ class DashboardRepository:
         total_criticos = (await self.db.execute(q_criticos)).scalar() or 0
         total_reteste_def = (await self.db.execute(q_reteste)).scalar() or 0
         
-        exec_stats = (await self.db.execute(q_exec_base)).first()
-        pendentes = exec_stats[0] or 0
-        bloqueados = exec_stats[1] or 0
-        aguardando_reteste_exec = exec_stats[2] or 0 
+        exec_stats_result = (await self.db.execute(q_exec_stats)).first()
+        
+        passed = exec_stats_result[0] or 0
+        failed = exec_stats_result[1] or 0
+        pending = exec_stats_result[2] or 0
+        blocked = exec_stats_result[3] or 0
 
-        total_aguardando_reteste = total_reteste_def + aguardando_reteste_exec
         
-        tot_fin = (await self.db.execute(q_finalizados)).scalar() or 0
-        
-        denominador = pendentes + tot_fin
-        taxa = round((tot_fin / denominador * 100), 1) if denominador > 0 else 0.0
+        total_executed_valid = passed + failed
+        taxa = round((passed / total_executed_valid * 100), 1) if total_executed_valid > 0 else 0.0
+
+        total_aguardando_reteste = total_reteste_def
 
         return {
             "total_projetos": total_projetos,
@@ -122,8 +115,8 @@ class DashboardRepository:
             "taxa_sucesso_ciclos": taxa,
             "total_defeitos_abertos": total_defeitos,
             "total_defeitos_criticos": total_criticos,
-            "total_pendentes": pendentes,
-            "total_bloqueados": bloqueados,
+            "total_pendentes": pending,
+            "total_bloqueados": blocked,
             "total_aguardando_reteste": total_aguardando_reteste
         }
 
@@ -178,7 +171,7 @@ class DashboardRepository:
     async def get_runner_kpis(self, runner_id: int) -> Dict[str, Any]:
         q_concluidos = select(func.count(ExecucaoTeste.id)).where(
             ExecucaoTeste.responsavel_id == runner_id,
-            ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.bloqueado])
+            ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado])
         )
 
         q_defeitos = select(func.count(Defeito.id)).join(Defeito.execucao).where(
@@ -234,7 +227,7 @@ class DashboardRepository:
         query = (
             select(Usuario.nome, func.count(ExecucaoTeste.id))
             .join(ExecucaoTeste, Usuario.id == ExecucaoTeste.responsavel_id)
-            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.bloqueado]))
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
             .group_by(Usuario.nome)
             .order_by(desc(func.count(ExecucaoTeste.id)))
             .limit(limit)
@@ -245,16 +238,15 @@ class DashboardRepository:
     # --- metodos de performance (novos) ---
 
     async def get_performance_velocity(self, user_id: Optional[int] = None, days: int = 30) -> List[tuple]:
-        # usa a data de truncamento para agrupar por dia
         cutoff_date = datetime.now() - timedelta(days=days)
         
-        # convertendo para data simples para agrupar
         query = (
             select(
                 func.date(ExecucaoTeste.updated_at).label('date'), 
                 func.count(ExecucaoTeste.id)
             )
             .where(ExecucaoTeste.updated_at >= cutoff_date)
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
             .group_by(func.date(ExecucaoTeste.updated_at))
             .order_by(func.date(ExecucaoTeste.updated_at))
         )
@@ -266,14 +258,12 @@ class DashboardRepository:
         return result.all()
 
     async def get_top_offending_modules_perf(self, user_id: Optional[int] = None, limit: int = 5) -> List[tuple]:
-        # similar a logica existente mas especifica para falhas e bloqueios
         query = (
             select(Modulo.nome, func.count(ExecucaoTeste.id))
             .select_from(ExecucaoTeste)
             .join(ExecucaoTeste.caso_teste)
             .join(CasoTeste.projeto)
             .join(Projeto.modulo)
-            # CORRIGIDO: StatusExecucaoEnum.falha (em vez de falhou)
             .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
             .group_by(Modulo.nome)
             .order_by(desc(func.count(ExecucaoTeste.id)))
@@ -287,8 +277,7 @@ class DashboardRepository:
         return result.all()
 
     async def get_team_stats_aggregates(self) -> Dict[str, Any]:
-        # 1. total de execucoes (status validos para calculo)
-        # CORRIGIDO: StatusExecucaoEnum.falha (em vez de falhou)
+        # 1. total de execucoes 
         q_total_exec = select(func.count(ExecucaoTeste.id)).where(
             ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado])
         )
@@ -310,13 +299,13 @@ class DashboardRepository:
         }
 
     async def get_user_stats_aggregates(self, user_id: int) -> Dict[str, Any]:
-        # 1. bugs reportados pelo usuario
         q_bugs = select(func.count(Defeito.id)).where(Defeito.criado_por_id == user_id)
 
-        # 2. total execucoes do usuario
-        q_execs = select(func.count(ExecucaoTeste.id)).where(ExecucaoTeste.responsavel_id == user_id)
+        q_execs = select(func.count(ExecucaoTeste.id)).where(
+            ExecucaoTeste.responsavel_id == user_id,
+            ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado])
+        )
 
-        # 3. execucoes bloqueadas do usuario
         q_blocked = select(func.count(ExecucaoTeste.id)).where(
             ExecucaoTeste.responsavel_id == user_id,
             ExecucaoTeste.status_geral == StatusExecucaoEnum.bloqueado
