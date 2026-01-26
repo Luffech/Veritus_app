@@ -71,7 +71,6 @@ export function QARunner() {
           }
 
           setActiveExecucao(data);
-          // Reinicia estados visuais, mas o useEffect acima vai recuperar do localStorage se existir
           setDefectsQueue([]);
           setStepStatuses({});
           setDefectToEdit(null);
@@ -116,12 +115,10 @@ export function QARunner() {
   };
 
   const processStepAction = async (passoId, acao) => {
-      // Atualiza apenas localmente (State + LocalStorage via useEffect)
       if (acao === 'aprovado') {
           setDefectsQueue(prev => prev.filter(d => d._passo_id_local !== passoId));
           setStepStatuses(prev => ({ ...prev, [passoId]: 'aprovado' }));
 
-          // Atualiza visualmente o objeto activeExecucao para remover evidências antigas da UI
           setActiveExecucao(prev => ({
               ...prev,
               passos_executados: prev.passos_executados.map(p => 
@@ -160,7 +157,6 @@ export function QARunner() {
 
       const listaFinalEvidencias = [...(existingImages || []), ...novasEvidenciasUrls];
       
-      // Atualiza UI
       setActiveExecucao(prev => ({
           ...prev,
           passos_executados: prev.passos_executados.map(p => 
@@ -169,12 +165,15 @@ export function QARunner() {
       }));
 
       const evidenciasJSON = JSON.stringify(listaFinalEvidencias);
-
       const passoAtual = activeExecucao.passos_executados.find(p => p.id === currentStepId);
       
-      // === CORREÇÃO AQUI: Mudado de passo_caso_teste para passo_template ===
-      const nomeAcaoPasso = passoAtual?.passo_template?.acao || "Passo desconhecido";
-      const tituloCompleto = `${defectInfo.titulo} (Passo: ${nomeAcaoPasso})`;
+      // === ATUALIZAÇÃO AQUI ===
+      const template = passoAtual?.passo_template;
+      const acaoPasso = template?.acao || "Ação desconhecida";
+      const resultadoPasso = template?.resultado_esperado || "Sem resultado esperado";
+      
+      // Criamos uma string formatada com separador "|||" para o Modal ler depois
+      const tituloCompleto = `${defectInfo.titulo} (DetalhesPasso: ${acaoPasso} ||| ${resultadoPasso})`;
 
       const newDefect = { 
           titulo: tituloCompleto,
@@ -187,16 +186,13 @@ export function QARunner() {
           _passo_id_local: currentStepId 
       };
 
-      // Guarda na Fila (LocalStorage)
       setDefectsQueue(prev => {
           const filtered = prev.filter(d => d._passo_id_local !== currentStepId);
           return [...filtered, newDefect];
       });
 
-      // Guarda Status (LocalStorage)
       setStepStatuses(prev => ({ ...prev, [currentStepId]: 'reprovado' }));
       
-      // Envia update silencioso para persistir evidência em caso de F5
       try {
           await api.put(`/testes/execucoes/passos/${currentStepId}`, { 
               status: 'reprovado',
@@ -235,13 +231,11 @@ export function QARunner() {
   const finishExecutionConfirm = async (statusFinal) => {
       setLoading(true);
       try {
-          // 1. Cria os defeitos da fila
           for (const defect of defectsQueue) {
               const { _passo_id_local, ...payload } = defect;
               await api.post("/defeitos/", payload);
           }
 
-          // 2. Atualiza os Passos no Backend
           const validStepIds = new Set(activeExecucao.passos_executados.map(p => String(p.id)));
           
           const stepPromises = Object.entries(stepStatuses)
@@ -252,13 +246,11 @@ export function QARunner() {
           
           await Promise.all(stepPromises);
 
-          // 3. Finaliza a Execução
           await api.put(`/testes/execucoes/${activeExecucao.id}/finalizar?status=${statusFinal}`);
           
           setActiveExecucao(prev => ({ ...prev, status_geral: statusFinal }));
           success("Tarefa fechada com sucesso!");
           
-          // Limpa LocalStorage
           localStorage.removeItem(`queue_${activeExecucao.id}`);
           localStorage.removeItem(`statuses_${activeExecucao.id}`);
           setDefectsQueue([]);
@@ -272,7 +264,6 @@ export function QARunner() {
       } finally { setLoading(false); }
   };
 
-  // Garante que o player recebe array nas evidências para evitar quebra
   const executionWithLocalState = activeExecucao ? {
       ...activeExecucao,
       passos_executados: activeExecucao.passos_executados.map(p => {
