@@ -1,18 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Logout } from './icons/Logout';
 import { List } from './icons/List';
+import { AccessibilityFont } from '../components/AccessibiliyFont';
 
 export function TopHeader({ toggleSidebar }) {
   const { user, logout } = useAuth();
 
   const [isHovered, setIsHovered] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   const nomeCompleto = user?.nome || 'Usuário';
-  const primeiroNome = nomeCompleto.trim().split(" ")[0];
+  const primeiroNome = nomeCompleto.trim().split(' ')[0];
+
+  
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark');
+      setIsDark(true);
+    }
+  }, []);
+
+ 
+  function toggleTheme() {
+    document.body.classList.toggle('dark');
+    const darkActive = document.body.classList.contains('dark');
+    setIsDark(darkActive);
+    localStorage.setItem('theme', darkActive ? 'dark' : 'light');
+  }
 
   return (
     <header className="top-header">
+      
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <button className="btn-mobile-menu" onClick={toggleSidebar} title="Abrir Menu"><List /></button>
         
@@ -37,31 +57,49 @@ export function TopHeader({ toggleSidebar }) {
             />
         </div>
       </div>
+
+    
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div className="header-user-badge">
-              <span 
-                className="header-user-name"
-                title={nomeCompleto} 
-                style={{
-                  display: 'inline-block',
-                  maxWidth: '100px',   
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  verticalAlign: 'middle'
-                }}
-              >
-                {primeiroNome}
-              </span>
-          </div>
-          <button
-            onClick={logout}
-            className="btn danger header-logout-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+
+       <AccessibilityFont />
+
+        <button
+  onClick={toggleTheme}
+  className="theme-toggle-btn"
+  title={isDark ? 'Modo claro' : 'Modo escuro'}
+>
+  <i
+    className={
+      isDark
+        ? 'bi bi-sun'
+        : 'bi bi-moon-stars-fill'
+    }
+    style={{ fontSize: '1.3rem' }}
+  ></i>
+</button>
+
+      
+        <div className="header-user-badge">
+          <span
+            className="header-user-name"
+            title={nomeCompleto}
+            style={{
+              display: 'inline-block',
+              maxWidth: '100px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              verticalAlign: 'middle'
+            }}
           >
-          <Logout />
-            Sair
-          </button>
+            {primeiroNome}
+          </span>
+        </div>
+
+        
+        <button onClick={logout} className="btn danger header-logout-btn">
+          Sair
+        </button>
       </div>
     </header>
   );
