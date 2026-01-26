@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 20px;
-  height: calc(100vh - 140px); /* Ajuste conforme seu header */
+  height: calc(100vh - 140px); 
   overflow: hidden;
 }
 
@@ -142,7 +142,7 @@
   background: white;
 }
 
-/* Cores de borda baseadas no status */
+
 .stepCard.pendente { border-left: 4px solid #94a3b8; }
 .stepCard.aprovado { border-left: 4px solid #10b981; background-color: #f0fdf4; }
 .stepCard.reprovado { border-left: 4px solid #ef4444; background-color: #fef2f2; }
@@ -200,7 +200,7 @@
 .btnFail:hover { background-color: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .btnFail.selected { background-color: #ef4444; color: white; border-color: #ef4444; }
 
-/* Evidências no Card */
+
 .evidenceStrip {
   display: flex;
   gap: 10px;
@@ -264,7 +264,7 @@
 }
 
 
-/* --- DARK MODE --- */
+
 
 :global(body.dark) .playerCard,
 :global(body.dark) .taskCard,
@@ -330,7 +330,7 @@
 }
 
 :global(body.dark) .stepNumber {
-  color: #93c5fd; /* azul suave */
+  color: #93c5fd; 
 }
 
 :global(body.dark) .executionHeader {
@@ -358,3 +358,88 @@
 :global(body.dark) .deleteBtn:hover {
   color: #f87171;
 }
+
+:global(body.dark) .sidebar {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+:global(body.dark) .taskItem {
+  border-bottom: 1px solid #1f2937;
+  color: #e5e7eb;
+}
+
+:global(body.dark) .taskItem:hover {
+  background-color: #1f2937;
+}
+
+:global(body.dark) .taskItem.active {
+  background-color: #1e293b;
+  border-color: #3b82f6;
+}
+
+:global(body.dark) .taskTitle {
+  color: #f9fafb;
+}
+
+:global(body.dark) .taskId,
+:global(body.dark) .taskFooter {
+  color: #9ca3af;
+}
+
+:global(body.dark) .playerContainer,
+:global(body.dark) .playerEmpty {
+  background: #0f172a;
+  border-color: #1f2937;
+  color: #e5e7eb;
+}
+
+:global(body.dark) .playerHeader {
+  background: #020617;
+  border-bottom: 1px solid #1f2937;
+}
+
+:global(body.dark) .description {
+  color: #9ca3af;
+}
+
+:global(body.dark) .stepCard {
+  background: #020617;
+  border-color: #1f2937;
+}
+
+:global(body.dark) .stepCard.pendente {
+  border-left-color: #64748b;
+}
+
+:global(body.dark) .stepCard.aprovado {
+  background-color: rgba(16, 185, 129, 0.12);
+  border-left-color: #10b981;
+}
+
+:global(body.dark) .stepCard.reprovado {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-left-color: #ef4444;
+}
+
+:global(body.dark) .btnAction {
+  background: #020617;
+  border-color: #1f2937;
+  color: #9ca3af;
+}
+
+:global(body.dark) .btnApprove:hover {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+
+:global(body.dark) .btnFail:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+:global(body.dark) .emptyState {
+  color: #9ca3af;
+}
+
+

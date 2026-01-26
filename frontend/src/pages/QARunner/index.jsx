@@ -9,6 +9,8 @@ import { ExecutionPlayer } from './ExecutionPlayer';
 import { EvidenceGallery } from './EvidenceGallery';
 import styles from './styles.module.css';
 
+
+
 export function QARunner() {
   const [tarefas, setTarefas] = useState([]);
   const [loading, setLoading] = useState(true);

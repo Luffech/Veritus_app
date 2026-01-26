@@ -274,6 +274,7 @@ export function QADefeitos() {
                                                 fontSize: '0.8rem', 
                                                 fontWeight: '700'
                                             }}>
+                                        
                                                 {group.defeitos.length} Defeito(s)
                                             </span>
                                         </td>

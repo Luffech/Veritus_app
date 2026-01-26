@@ -335,34 +335,34 @@
   color: #cbd5e1;
 }
 
-/* --- STATUS BADGES (Novos da MAIN) --- */
+
 .status-ativo {
-    background-color: #dcfce7; /* Verde claro */
-    color: #166534; /* Verde escuro */
+    background-color: #dcfce7; 
+    color: #166534; 
     border: 1px solid #bbf7d0;
 }
 
 .status-rascunho {
-    background-color: #f3f4f6; /* Cinza claro */
-    color: #374151; /* Cinza escuro */
+    background-color: #f3f4f6; 
+    color: #374151; 
     border: 1px solid #e5e7eb;
     border-style: dashed;
 }
 
 .status-obsoleto {
-    background-color: #fee2e2; /* Vermelho claro */
-    color: #991b1b; /* Vermelho escuro */
+    background-color: #fee2e2; 
+    color: #991b1b; 
     border: 1px solid #fecaca;
     text-decoration: line-through;
 }
 
 .status-revisao {
-    background-color: #ffedd5; /* Laranja claro */
-    color: #9a3412; /* Laranja escuro */
+    background-color: #ffedd5; 
+    color: #9a3412;
     border: 1px solid #fed7aa;
 }
 
-/* --- DARK MODE (Seu código) --- */
+
 body.dark {
   --card-bg: #1e1e1e;
   --card-border: #303030;
