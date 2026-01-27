@@ -14,25 +14,24 @@ export function RunnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null); // null representa visao da equipe
+  const [selectedUser, setSelectedUser] = useState(null); 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   const { error } = useSnackbar();
 
-  // busca lista de usuarios para o dropdown
+  // BUSCA USUARIOS
   useEffect(() => {
     api.get('/usuarios/')
       .then(resp => setUsers(resp || []))
       .catch(() => error("Erro ao carregar lista de usuários."));
   }, [error]);
 
-  // busca dados de performance sempre que o usuario selecionado mudar
+  // BUSCA DADOS DE PERFORMANCE
   useEffect(() => {
     async function loadPerformance() {
       setLoading(true);
       try {
         const params = selectedUser ? { user_id: selectedUser.id } : {};
-        // endpoint ajustado para o controller runner_dashboard
         const response = await api.get('/dashboard-runners/performance', { params });
         setData(response);
       } catch (err) {
@@ -58,7 +57,7 @@ export function RunnerDashboard() {
   return (
     <main className="container performance-container">
       
-      {/* --- Cabecalho com Dropdown --- */}
+      {/* HEADER E DROPDOWN */}
       <div className="performance-header">
         <div>
           <h2 className="section-title">
@@ -108,7 +107,7 @@ export function RunnerDashboard() {
         </div>
       </div>
 
-      {/* --- Grid de KPIs --- */}
+      {/* GRID DE KPIS */}
       <div className="kpi-grid">
         {isTeamView ? (
           <>
@@ -175,10 +174,10 @@ export function RunnerDashboard() {
         )}
       </div>
 
-      {/* --- Sessao de Graficos --- */}
+      {/* GRAFICOS */}
       <div className="charts-grid">
         
-        {/* Grafico de Velocidade */}
+        {/* VELOCIDADE */}
         <div className="chart-card">
           <h3 className="chart-title">{isTeamView ? 'Velocidade da Equipe (30 dias)' : 'Ritmo de Trabalho Individual'}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -192,7 +191,7 @@ export function RunnerDashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Grafico de Status/Rigor */}
+        {/* STATUS E RIGOR */}
         <div className="chart-card">
           <h3 className="chart-title">{isTeamView ? 'Status Global' : 'Perfil de Rigor'}</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -215,7 +214,7 @@ export function RunnerDashboard() {
         </div>
       </div>
 
-      {/* Grafico Top Ofensores */}
+      {/* TOP OFENSORES */}
       <div className="chart-card full-width">
         <h3 className="chart-title">Módulos Mais Críticos (Top Ofensores)</h3>
         <ResponsiveContainer width="100%" height={250}>

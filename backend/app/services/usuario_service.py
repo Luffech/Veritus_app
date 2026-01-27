@@ -13,6 +13,7 @@ class UsuarioService:
     def __init__(self, db: AsyncSession):
         self.repo = UsuarioRepository(db)
 
+    # GET
     async def get_all_usuarios(self, ativo: Optional[bool] = None) -> Sequence[UsuarioResponse]:
         db_usuarios = await self.repo.get_all_usuarios(ativo) 
         return [UsuarioResponse.model_validate(u) for u in db_usuarios]
@@ -23,6 +24,7 @@ class UsuarioService:
             return UsuarioResponse.model_validate(db_usuario)
         return None
 
+    # CREATE
     async def create_usuario(self, usuario_data: UsuarioCreate) -> UsuarioResponse:
         usuario_data.senha = get_password_hash(usuario_data.senha)
         
@@ -36,6 +38,7 @@ class UsuarioService:
                 "email": "Email já existente."
             })
 
+    # UPDATE
     async def update_usuario(self, usuario_id: int, usuario_data: UsuarioUpdate) -> Optional[UsuarioResponse]:
         db_usuario = await self.repo.get_by_id(usuario_id)
         if not db_usuario:
@@ -45,8 +48,7 @@ class UsuarioService:
             usuario_data.senha = get_password_hash(usuario_data.senha)
         
         if not usuario_data.model_dump(exclude_unset=True):
-             
-             pass
+             raise HTTPException(status_code=400, detail="Nenhum dado fornecido para atualização.")
 
         try:
             usuario_atualizado_db = await self.repo.update(db_usuario, usuario_data)
@@ -58,6 +60,7 @@ class UsuarioService:
                 "email": "Este email já está em uso por outra pessoa."
             })
 
+    # DELETE
     async def delete_usuario(self, usuario_id: int) -> bool:
         usuario_alvo = await self.repo.get_by_id(usuario_id)        
         if not usuario_alvo:

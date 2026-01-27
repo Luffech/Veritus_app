@@ -3,12 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.usuario import Usuario
-from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
 
 class UsuarioRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # GET 
     async def get_by_id(self, user_id: int) -> Optional[Usuario]:
         query = select(Usuario).options(selectinload(Usuario.nivel_acesso)).where(Usuario.id == user_id)
         result = await self.db.execute(query)
@@ -31,7 +31,8 @@ class UsuarioRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def create(self, usuario: UsuarioCreate) -> Usuario:
+    # CREATE 
+    async def create(self, usuario: Any) -> Usuario:
         db_obj = Usuario(
             nome=usuario.nome,
             username=usuario.username,
@@ -43,12 +44,13 @@ class UsuarioRepository:
         self.db.add(db_obj)
         await self.db.commit()
         await self.db.refresh(db_obj)
-        await self.db.execute(
-            select(Usuario).options(selectinload(Usuario.nivel_acesso)).where(Usuario.id == db_obj.id)
-        )
-        return db_obj
-    
-    async def update(self, db_obj: Usuario, obj_in: Union[UsuarioUpdate, Dict[str, Any]]) -> Usuario:
+        
+        query = select(Usuario).options(selectinload(Usuario.nivel_acesso)).where(Usuario.id == db_obj.id)
+        result = await self.db.execute(query)
+        return result.scalars().first()
+
+    # UPDATE 
+    async def update(self, db_obj: Usuario, obj_in: Union[Any, Dict[str, Any]]) -> Usuario:
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
@@ -65,7 +67,7 @@ class UsuarioRepository:
         await self.db.refresh(db_obj)
         return db_obj
 
-    # --- MÉTODO NOVO ---
+    # DELETE 
     async def delete(self, user_id: int) -> bool:
         usuario = await self.get_by_id(user_id)
         if usuario:
