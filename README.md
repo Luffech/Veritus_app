@@ -77,10 +77,11 @@ docker-compose up --build
 Este projeto é fruto do trabalho colaborativo de:
 
 * **Luiz Fernando**
-* **Isaque Peres**
+* **Isaque Perez**
 * **Diego Couto**
 * **Igor Giamattey**
 * **Kevin Christian**
+
 
 
 
