@@ -97,6 +97,17 @@ async def listar_ciclos_projeto(
 ):
     return await service.listar_por_projeto(projeto_id)
 
+@router.get("/ciclos", response_model=List[CicloTesteResponse])
+async def listar_todos_ciclos(
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user) 
+):
+    """
+    Lista todos os ciclos de teste de todos os projetos.
+    """
+    service = CicloTesteService(db)
+    return await service.get_all_ciclos()
+
 @router.post("/projetos/{projeto_id}/ciclos", response_model=CicloTesteResponse, status_code=status.HTTP_201_CREATED)
 async def criar_ciclo(
     projeto_id: int,
