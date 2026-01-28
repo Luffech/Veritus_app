@@ -121,21 +121,6 @@ export function AdminLogs() {
             </span>
         )
     },
-    {
-        header: '',
-        accessor: 'actions',
-        width: '60px',
-        render: (row) => isAdmin && (
-            <button 
-                onClick={() => handleDeleteRequest(row)} 
-                className="btn danger small btn-action-icon" 
-                title="Excluir Registro de Auditoria"
-                style={{ padding: '6px' }}
-            >
-                <Trash size={16} />
-            </button>
-        )
-    }
   ], [isAdmin]);
 
   return (
