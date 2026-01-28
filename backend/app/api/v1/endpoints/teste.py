@@ -38,13 +38,19 @@ def get_execucao_service(db: AsyncSession = Depends(get_db)) -> ExecucaoTesteSer
     return ExecucaoTesteService(db)
 
 # --- GESTÃO DE CASOS DE TESTE ---
+@router.get("/casos", response_model=List[CasoTesteResponse])
+async def listar_todos_casos(
+    service: CasoTesteService = Depends(get_caso_service),
+    current_user: Usuario = Depends(get_current_active_user)
+):
+    return await service.listar_todos()
+
 @router.get("/projetos/{projeto_id}/casos", response_model=List[CasoTesteResponse])
 async def listar_casos_projeto(
     projeto_id: int,
     service: CasoTesteService = Depends(get_caso_service),
     current_user: Usuario = Depends(get_current_active_user)
 ):
-    # CORREÇÃO: Método correto é listar_casos_teste
     return await service.listar_casos_teste(projeto_id)
 
 @router.post("/projetos/{projeto_id}/casos", response_model=CasoTesteResponse, status_code=status.HTTP_201_CREATED)
@@ -65,7 +71,6 @@ async def obter_caso_teste(
     service: CasoTesteService = Depends(get_caso_service),
     current_user: Usuario = Depends(get_current_active_user)
 ):
-    # O Service já levanta 404 se não achar
     return await service.obter_caso_teste(caso_id)
 
 @router.put("/casos/{caso_id}", response_model=CasoTesteResponse)
@@ -75,7 +80,6 @@ async def atualizar_caso_teste(
     service: CasoTesteService = Depends(get_caso_service),
     current_user: Usuario = Depends(get_current_active_user)
 ):
-    # CORREÇÃO: Método correto é atualizar_caso_teste
     return await service.atualizar_caso_teste(caso_id, dados)
 
 @router.delete("/casos/{caso_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -84,9 +88,7 @@ async def remover_caso_teste(
     service: CasoTesteService = Depends(get_caso_service),
     current_user: Usuario = Depends(get_current_active_user)
 ):
-    # CORREÇÃO: Método correto é deletar_caso_teste
     await service.deletar_caso_teste(caso_id)
-
 
 # --- GESTÃO DE CICLOS DE TESTE ---
 @router.get("/projetos/{projeto_id}/ciclos", response_model=List[CicloTesteResponse])
