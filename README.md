@@ -2,7 +2,7 @@
   <img src="banner-veritus.png.png" alt="Veritus Banner" width="100%">
 </p>
 
-# 🚀 Veritus: Sistema de Gestão de Testes (GE_Aerospace)
+# 🚀 Veritus: Sistema de Gestão de Testes
 
 O **Veritus** é uma aplicação Full Stack desenvolvida para otimizar e profissionalizar o fluxo de **testes manuais**. Ele oferece uma estrutura robusta para organizar o gerenciamento de sistemas, módulos e casos de teste, garantindo rastreabilidade e qualidade em cada entrega.
 
@@ -81,5 +81,6 @@ Este projeto é fruto do trabalho colaborativo de:
 * **Diego Couto**
 * **Igor Giamattey**
 * **Kevin Christian**
+
 
 
