@@ -5,10 +5,10 @@ from app.schemas.log import LogCreate, LogResponse
 class LogService:
     def __init__(self, db: AsyncSession):
         self.repo = LogRepository(db)
-
-    async def registrar_acao(self, usuario_id: int, acao: str, entidade: str, entidade_id: int = None, detalhes: str = ""):
+    async def registrar_acao(self, usuario_id: int, acao: str, entidade: str, entidade_id: int = None, sistema_id: int = None, detalhes: str = ""):
         dados = LogCreate(
             usuario_id=usuario_id,
+            sistema_id=sistema_id,
             acao=acao,
             entidade=entidade,
             entidade_id=entidade_id,
@@ -22,6 +22,8 @@ class LogService:
             LogResponse(
                 id=l.id,
                 usuario_nome=l.usuario.nome if l.usuario else "Sistema",
+                sistema_nome=l.sistema.nome if l.sistema else None,
+                sistema_id=l.sistema_id,
                 acao=l.acao,
                 entidade=l.entidade,
                 detalhes=l.detalhes,

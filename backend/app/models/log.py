@@ -8,6 +8,7 @@ class LogSistema(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    sistema_id = Column(Integer, ForeignKey("sistemas.id"), nullable=True)
     acao = Column(String)
     entidade = Column(String)
     entidade_id = Column(Integer, nullable=True)
@@ -15,3 +16,4 @@ class LogSistema(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     usuario = relationship("Usuario")
+    sistema = relationship("Sistema")

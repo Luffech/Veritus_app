@@ -19,7 +19,10 @@ class LogRepository:
     async def get_all(self, limit: int = 100) -> Sequence[LogSistema]:
         query = (
             select(LogSistema)
-            .options(selectinload(LogSistema.usuario))
+            .options(
+                selectinload(LogSistema.usuario),
+                selectinload(LogSistema.sistema)
+            )
             .order_by(LogSistema.created_at.desc())
             .limit(limit)
         )

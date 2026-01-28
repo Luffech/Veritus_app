@@ -29,7 +29,8 @@ async def create_modulo(
         acao="CRIAR",
         entidade="Modulo",
         entidade_id=novo_modulo.id,
-        detalhes=f"Criou o módulo '{novo_modulo.nome}' (Sistema ID: {novo_modulo.sistema_id})"
+        sistema_id=novo_modulo.sistema_id,
+        detalhes=f"Criou o módulo '{novo_modulo.nome}'"
     )
     
     return novo_modulo

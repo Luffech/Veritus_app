@@ -1,93 +1,176 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { useSnackbar } from '../../context/SnackbarContext';
-import { Trash } from '../../components/icons/Trash';
 import { ConfirmationModal } from '../../components/ConfirmationModal';
+import { Search } from '../../components/icons/Search';
 import { useAuth } from '../../context/AuthContext';
-import './styles.css'; 
+import './styles.css';
 
-// Componente de Filtro de Sistema (Estilo Dropdown Nativo para manter consistência com o exemplo dado)
-const SistemaSelect = ({ options, value, onChange }) => {
-    return (
-        <select 
-            value={value} 
-            onChange={(e) => onChange(e.target.value)}
-            className="form-control"
-            style={{ width: '200px', fontSize: '0.9rem' }}
-        >
-            <option value="">Todos os Sistemas</option>
-            {options.map(sis => (
-                <option key={sis.id} value={sis.id}>{sis.nome}</option>
-            ))}
-        </select>
-    );
+// --- COMPONENTE REUTILIZÁVEL (Cópia do AdminCiclos para consistência) ---
+const SearchableSelect = ({ options = [], value, onChange, placeholder, disabled, labelKey = 'nome', maxLen = 25 }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+
+  const truncate = (str, n) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
+
+  useEffect(() => {
+    if (!Array.isArray(options)) return;
+    if (value === null || value === undefined || value === '') {
+      if (!(value === '' && searchTerm !== '')) setSearchTerm('');
+    }
+    const selectedOption = options.find(opt => String(opt.id) === String(value));
+    if (selectedOption) {
+      if (!isOpen || searchTerm === '') setSearchTerm(selectedOption[labelKey]);
+    }
+  }, [value, options, labelKey]); 
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+        if (value && Array.isArray(options)) {
+            const selectedOption = options.find(opt => String(opt.id) === String(value));
+            if (selectedOption) setSearchTerm(selectedOption[labelKey]);
+        } else {
+            setSearchTerm(''); 
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef, value, options, labelKey]);
+
+  const safeOptions = Array.isArray(options) ? options : [];
+  const filteredOptions = searchTerm === '' 
+    ? safeOptions 
+    : safeOptions.filter(opt => opt[labelKey] && opt[labelKey].toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const displayOptions = filteredOptions.slice(0, 50);
+
+  const handleSelect = (option) => {
+    onChange(option.id);
+    setSearchTerm(option[labelKey]);
+    setIsOpen(false);
+  };
+
+  const handleClear = (e) => {
+      e.stopPropagation();
+      onChange('');
+      setSearchTerm('');
+      setIsOpen(false);
+  }
+
+  return (
+    <div ref={wrapperRef} className="search-wrapper" style={{ width: '100%', position: 'relative' }}>
+      <input
+        type="text"
+        className={`form-control ${disabled ? 'bg-gray' : ''}`}
+        placeholder={placeholder}
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); if (e.target.value === '') onChange(''); }}
+        onFocus={() => !disabled && setIsOpen(true)}
+        disabled={disabled}
+        style={{ cursor: disabled ? 'not-allowed' : 'text', paddingRight: '30px' }}
+      />
+      <span className="search-icon" style={{ cursor: disabled ? 'not-allowed' : 'pointer', right: '10px', position: 'absolute', top: '50%', transform: 'translateY(-50%)', fontSize: '12px' }} onClick={() => !disabled && setIsOpen(!isOpen)}>▼</span>
+      
+      {isOpen && !disabled && (
+        <ul className="custom-dropdown" style={{ width: '100%', top: '100%', zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+            <li onClick={handleClear} style={{ color: '#3b82f6', fontWeight: 'bold', borderBottom: '1px solid #eee', cursor: 'pointer', padding: '10px 15px' }}>
+                Todos
+            </li>
+            {displayOptions.length === 0 ? (
+                <li style={{ color: '#999', cursor: 'default', padding: '10px' }}>{searchTerm ? 'Sem resultados' : 'Digite para buscar...'}</li>
+            ) : (
+                displayOptions.map(opt => (
+                <li key={opt.id} onClick={() => handleSelect(opt)} title={opt[labelKey]}>
+                    {truncate(opt[labelKey], maxLen)}
+                </li>
+                ))
+            )}
+        </ul>
+      )}
+    </div>
+  );
 };
 
 export function AdminLogs() {
   const [logs, setLogs] = useState([]);
-  const [sistemas, setSistemas] = useState([]);
-  const [selectedSistema, setSelectedSistema] = useState('');
-  
+  const [sistemas, setSistemas] = useState([]); // Para o filtro
   const [loading, setLoading] = useState(true);
   const { error, success } = useSnackbar();
   const { user } = useAuth();
   
-  // Estados para Modal de Delete
+  // --- ESTADOS DE FILTRO ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSistema, setSelectedSistema] = useState('');
+  
+  // Filtro de Ação (Dropdown no Header)
+  const [acaoSearchText, setAcaoSearchText] = useState('');
+  const [selectedAcao, setSelectedAcao] = useState('');
+  const [isAcaoOpen, setIsAcaoOpen] = useState(false);
+  const acaoHeaderRef = useRef(null);
+
+  // Estados de Ação
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [logToDelete, setLogToDelete] = useState(null);
 
-  // Estados para Filtros de Cabeçalho (Ação)
-  const [acaoSearchText, setAcaoSearchText] = useState('');
-  const [selectedAcao, setSelectedAcao] = useState('');
-  const [isAcaoSearchOpen, setIsAcaoSearchOpen] = useState(false);
-  const acaoHeaderRef = useRef(null);
-
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 5; // Logs geralmente mostram mais itens por página
 
   const isAdmin = user?.role === 'admin' || user?.nivel_acesso?.nome === 'admin';
 
-  // Opções para o filtro de Ação
-  const acaoOptions = [
-      {label: 'CRIAR', value: 'CRIAR'},
-      {label: 'ATUALIZAR', value: 'ATUALIZAR'},
-      {label: 'DELETAR', value: 'DELETAR'},
-      {label: 'LOGIN', value: 'LOGIN'}
-  ];
-  const filteredAcaoHeader = acaoOptions.filter(o => o.label.toLowerCase().includes(acaoSearchText.toLowerCase()));
+  const truncate = (str, n = 50) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
+  
+  // Formata data PT-BR
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  };
 
-  // --- CARREGAMENTO DE DADOS ---
+  // --- EFEITOS ---
   useEffect(() => {
     loadData();
   }, []);
 
-  // Fecha dropdowns ao clicar fora
+  // Fecha dropdown do header ao clicar fora
   useEffect(() => {
     function handleClickOutside(event) {
-        if (acaoHeaderRef.current && !acaoHeaderRef.current.contains(event.target)) {
-            if (!selectedAcao) { setIsAcaoSearchOpen(false); setAcaoSearchText(''); }
-        }
+      if (acaoHeaderRef.current && !acaoHeaderRef.current.contains(event.target)) {
+        if (!selectedAcao) { setIsAcaoOpen(false); setAcaoSearchText(''); }
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [selectedAcao]);
 
   // Reset paginação ao filtrar
-  useEffect(() => { setCurrentPage(1); }, [selectedSistema, selectedAcao]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedSistema, selectedAcao]);
 
+  // --- CARREGAMENTO ---
   const loadData = async () => {
     setLoading(true);
     try {
+      // Carrega Logs e Sistemas para o filtro
       const [logsRes, sisRes] = await Promise.all([
           api.get('/logs/'),
           api.get('/sistemas/')
       ]);
-      setLogs(Array.isArray(logsRes.data || logsRes) ? (logsRes.data || logsRes) : []);
+      
+      const logsData = Array.isArray(logsRes.data || logsRes) ? (logsRes.data || logsRes) : [];
+      // Ordena logs por data decrescente (caso o backend não garanta)
+      logsData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      setLogs(logsData);
       setSistemas(Array.isArray(sisRes.data || sisRes) ? (sisRes.data || sisRes) : []);
     } catch (err) {
       console.error(err);
-      error("Erro ao carregar histórico.");
+      error("Erro ao carregar dados.");
     } finally {
       setLoading(false);
     }
@@ -103,7 +186,7 @@ export function AdminLogs() {
       try {
           await api.delete(`/logs/${logToDelete.id}`);
           success("Registro removido.");
-          loadData(); // Recarrega tudo
+          loadData();
       } catch(e) {
           error("Erro ao remover registro.");
       } finally {
@@ -112,25 +195,36 @@ export function AdminLogs() {
       }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
-  };
-
-  const truncate = (str, n = 50) => (str && str.length > n) ? str.substr(0, n - 1) + '...' : str || '';
-
-  // --- FILTRAGEM ---
+  // --- FILTRAGEM DOS DADOS ---
   const filteredLogs = logs.filter(log => {
       // Filtro de Sistema
       if (selectedSistema && String(log.sistema_id) !== String(selectedSistema)) return false;
-      // Filtro de Ação
-      if (selectedAcao && log.acao !== selectedAcao) return false;
       
+      // Filtro de Ação (Coluna)
+      if (selectedAcao && log.acao !== selectedAcao) return false;
+
+      // Filtro de Texto (Global)
+      if (searchTerm) {
+          const s = searchTerm.toLowerCase();
+          const match = 
+            (log.usuario_nome || '').toLowerCase().includes(s) ||
+            (log.sistema_nome || '').toLowerCase().includes(s) ||
+            (log.entidade || '').toLowerCase().includes(s) ||
+            (log.detalhes || '').toLowerCase().includes(s) ||
+            String(log.id).includes(s);
+          if (!match) return false;
+      }
       return true;
   });
+
+  // Opções para o filtro de Ação no Header
+  const acaoOptions = [
+      {label: 'CRIAR', value: 'CRIAR'},
+      {label: 'ATUALIZAR', value: 'ATUALIZAR'},
+      {label: 'DELETAR', value: 'DELETAR'},
+      {label: 'LOGIN', value: 'LOGIN'}
+  ];
+  const filteredAcaoHeader = acaoOptions.filter(o => o.label.toLowerCase().includes(acaoSearchText.toLowerCase()));
 
   // --- PAGINAÇÃO ---
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
@@ -139,28 +233,43 @@ export function AdminLogs() {
 
   return (
     <main className="container">
-      
       <ConfirmationModal 
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={confirmDelete}
         title="Apagar Log"
-        message="Esta ação remove o registro de auditoria permanentemente. Continuar?"
+        message="Tem certeza? Esta ação remove o rastro de auditoria permanentemente."
         isDanger={true}
       />
 
-      <section className="card" style={{ marginTop: 0 }}>
+      <section className="card" style={{marginTop: 0}}>
         <div className="toolbar">
             <h3 className="page-title">Logs do Sistema</h3>
-            
             <div className="toolbar-actions">
                 <div className="filter-group">
-                    <span className="filter-label">FILTRAR POR SISTEMA:</span>
-                    <SistemaSelect 
-                        options={sistemas} 
-                        value={selectedSistema} 
-                        onChange={setSelectedSistema} 
+                     <span className="filter-label">SISTEMA:</span>
+                     <div style={{width: '200px'}}>
+                         <SearchableSelect 
+                             options={sistemas}
+                             value={selectedSistema}
+                             onChange={setSelectedSistema}
+                             placeholder="Todos os Sistemas"
+                             maxLen={20}
+                         />
+                     </div>
+                </div>
+
+                <div className="separator"></div>
+
+                <div className="search-wrapper">
+                    <input 
+                        type="text" 
+                        placeholder="Buscar log..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className="search-input" 
                     />
+                    <span className="search-icon"><Search /></span>
                 </div>
             </div>
         </div>
@@ -172,40 +281,52 @@ export function AdminLogs() {
                         <thead>
                             <tr>
                                 <th style={{width: '60px'}}>ID</th>
-                                <th style={{width: '150px'}}>Data / Hora</th>
-                                <th style={{width: '180px'}}>Usuário</th>
-                                <th style={{width: '150px'}}>Sistema</th>
+                                <th style={{width: '140px'}}>Data / Hora</th>
+                                <th style={{width: '160px'}}>Usuário</th>
+                                <th style={{width: '140px'}}>Sistema</th>
                                 
-                                {/* Filtro de Ação no Header */}
-                                <th style={{width: '120px', textAlign: 'center', verticalAlign: 'middle'}}>
+                                {/* Filtro Dropdown no Header (Ação) */}
+                                <th style={{width: '110px', textAlign: 'center', verticalAlign: 'middle'}}>
                                     <div className="th-filter-container" ref={acaoHeaderRef} style={{justifyContent: 'center'}}>
-                                        {isAcaoSearchOpen || selectedAcao ? (
+                                        {isAcaoOpen || selectedAcao ? (
                                             <div style={{position: 'relative', width: '100%'}}>
                                                 <input 
-                                                    autoFocus type="text" className={`th-search-input ${selectedAcao ? 'active' : ''}`} placeholder="Ação..."
-                                                    value={selectedAcao && acaoSearchText === '' ? selectedAcao : acaoSearchText}
+                                                    autoFocus 
+                                                    type="text" 
+                                                    className={`th-search-input ${selectedAcao ? 'active' : ''}`} 
+                                                    placeholder="Ação..." 
+                                                    value={selectedAcao ? selectedAcao : acaoSearchText}
                                                     onChange={(e) => { setAcaoSearchText(e.target.value); if(selectedAcao) setSelectedAcao(''); }}
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                                 <button className="btn-clear-filter" onClick={(e) => {
-                                                    e.stopPropagation(); if(selectedAcao){setSelectedAcao('');setAcaoSearchText('')}else{setIsAcaoSearchOpen(false);setAcaoSearchText('')}
+                                                    e.stopPropagation(); 
+                                                    if(selectedAcao){setSelectedAcao('');setAcaoSearchText('')}
+                                                    else{setIsAcaoOpen(false);setAcaoSearchText('')}
                                                 }}>✕</button>
+                                                
                                                 {(!selectedAcao || acaoSearchText) && (
-                                                    <ul className="custom-dropdown" style={{width: '100%', top: '32px', left: 0, textAlign: 'left'}}>
-                                                        <li onClick={() => { setSelectedAcao(''); setAcaoSearchText(''); setIsAcaoSearchOpen(false); }}><span style={{color:'#3b82f6', fontWeight:'bold'}}>Todos</span></li>
+                                                    <ul className="custom-dropdown" style={{width: '100%', top: '32px', left: 0}}>
+                                                        <li onClick={() => { setSelectedAcao(''); setAcaoSearchText(''); setIsAcaoOpen(false); }}>
+                                                            <span style={{color:'#3b82f6'}}>Todos</span>
+                                                        </li>
                                                         {filteredAcaoHeader.map(opt => (
-                                                            <li key={opt.value} onClick={() => { setSelectedAcao(opt.value); setAcaoSearchText(''); setIsAcaoSearchOpen(true); }}>{opt.label}</li>
+                                                            <li key={opt.value} onClick={()=>{setSelectedAcao(opt.value);setAcaoSearchText('');setIsAcaoOpen(true)}}>
+                                                                {opt.label}
+                                                            </li>
                                                         ))}
                                                     </ul>
                                                 )}
                                             </div>
                                         ) : (
-                                            <div className="th-label" onClick={() => setIsAcaoSearchOpen(true)} title="Filtrar Ação">AÇÃO <span className="filter-icon">▼</span></div>
+                                            <div className="th-label" onClick={() => setIsAcaoOpen(true)} title="Filtrar">
+                                                AÇÃO <span className="filter-icon">▼</span>
+                                            </div>
                                         )}
                                     </div>
                                 </th>
 
-                                <th style={{width: '150px'}}>Entidade</th>
+                                <th style={{width: '140px'}}>Entidade</th>
                                 <th>Detalhes</th>
                             </tr>
                         </thead>
@@ -220,15 +341,23 @@ export function AdminLogs() {
                                 currentItems.map(row => (
                                     <tr key={row.id} className="selectable">
                                         <td className="cell-id">#{row.id}</td>
-                                        <td style={{fontSize: '0.85rem', color: '#64748b'}}>{formatDate(row.created_at)}</td>
+                                        <td style={{fontSize: '0.8rem', color:'#64748b'}}>
+                                            {formatDate(row.created_at)}
+                                        </td>
                                         <td>
-                                            <div className="log-user-cell">
-                                                <div className="log-user-avatar">{(row.usuario_nome||'?').charAt(0)}</div>
-                                                <span style={{fontWeight: 500}}>{row.usuario_nome || 'Sistema'}</span>
+                                            <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                                                <div style={{
+                                                    width:'24px', height:'24px', backgroundColor:'#e2e8f0', 
+                                                    borderRadius:'50%', display:'flex', alignItems:'center', 
+                                                    justifyContent:'center', fontSize:'10px', fontWeight:'bold', color:'#475569'
+                                                }}>
+                                                    {(row.usuario_nome||'?').charAt(0).toUpperCase()}
+                                                </div>
+                                                <span style={{fontWeight:500}}>{truncate(row.usuario_nome || 'Sistema', 15)}</span>
                                             </div>
                                         </td>
-                                        <td style={{fontWeight: 600, color: '#0f172a'}}>
-                                            {row.sistema_nome || <span style={{color:'#cbd5e1', fontStyle:'italic'}}>-</span>}
+                                        <td style={{fontWeight: 600, color: '#334155'}}>
+                                            {row.sistema_nome || '-'}
                                         </td>
                                         <td style={{textAlign: 'center'}}>
                                             <span className={`log-action-badge log-action-${row.acao}`}>
@@ -237,11 +366,11 @@ export function AdminLogs() {
                                         </td>
                                         <td>
                                             <span className="log-entidade-badge">
-                                                {row.entidade} #{row.entidade_id}
+                                                {row.entidade} <span style={{opacity:0.6}}>#{row.entidade_id}</span>
                                             </span>
                                         </td>
-                                        <td style={{color: '#475569', fontSize: '0.9rem'}}>
-                                            {truncate(row.detalhes, 80)}
+                                        <td style={{color: '#475569', fontSize: '0.85rem'}}>
+                                            {truncate(row.detalhes, 60)}
                                         </td>
                                     </tr>
                                 ))
