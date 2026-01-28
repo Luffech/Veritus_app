@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="banner-veritus.png" alt="Veritus Banner" width="100%">
+  <img src="banner-veritus.png.png" alt="Veritus Banner" width="100%">
 </p>
 
 # 🚀 Veritus: Sistema de Gestão de Testes (GE_Aerospace)
@@ -81,4 +81,5 @@ Este projeto é fruto do trabalho colaborativo de:
 * **Diego Couto**
 * **Igor Giamattey**
 * **Kevin Christian**
+
 
