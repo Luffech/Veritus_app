@@ -25,7 +25,12 @@ async def get_projetos(
     service: ProjetoService = Depends(get_service),
     current_user: Usuario = Depends(get_current_active_user)
 ):
-    # CORREÇÃO: Usando o método correto do service
+    return await service.get_all_projetos()
+@router.get("/selection", response_model=List[ProjetoResponse])
+async def get_projetos_selection(
+    service: ProjetoService = Depends(get_service),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     return await service.get_all_projetos()
 
 @router.get("/{projeto_id}", response_model=ProjetoResponse)
