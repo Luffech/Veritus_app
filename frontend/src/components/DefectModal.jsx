@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { X, ExternalLink, Calendar, Filter } from 'lucide-react';
 import { useSnackbar } from '../context/SnackbarContext';
 import { useAuth } from '../context/AuthContext';
+import { ConfirmationModal } from './ConfirmationModal';
 import './DefectModal.css';
 
 export function DefectModal({ executionGroup, onClose }) {
@@ -10,9 +11,8 @@ export function DefectModal({ executionGroup, onClose }) {
 
   const { user } = useAuth();
   const [processing, setProcessing] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const { success, error } = useSnackbar();
-
-  // --- ESTADOS PARA FILTRO E SCROLL INFINITO ---
   const [statusFilter, setStatusFilter] = useState('todos');
   const [visibleCount, setVisibleCount] = useState(5); 
   const scrollRef = useRef(null);
@@ -27,6 +27,11 @@ export function DefectModal({ executionGroup, onClose }) {
     }
   }, [statusFilter]);
 
+  // Verifica se existe pelo menos um defeito com status 'aberto'
+  const hasOpenDefects = useMemo(() => {
+    return executionGroup.defeitos?.some(d => d.status === 'aberto');
+  }, [executionGroup.defeitos]);
+
   // --- FILTRAGEM DOS DADOS ---
   const filteredDefects = useMemo(() => {
     if (!executionGroup.defeitos) return [];
@@ -36,6 +41,7 @@ export function DefectModal({ executionGroup, onClose }) {
       return d.status === statusFilter;
     });
   }, [executionGroup.defeitos, statusFilter]);
+
   const visibleDefects = filteredDefects.slice(0, visibleCount);
 
   // --- DETECTOR DE SCROLL ---
@@ -47,6 +53,7 @@ export function DefectModal({ executionGroup, onClose }) {
       }
     }
   };
+
   const formatDateTime = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('pt-BR', {
@@ -54,6 +61,7 @@ export function DefectModal({ executionGroup, onClose }) {
       hour: '2-digit', minute: '2-digit'
     });
   };
+
   const parseDefectInfo = (fullTitle) => {
     if (!fullTitle) return { cleanTitle: "", acao: null, esperado: null };
     const matchNew = fullTitle.match(/^(.*) \(DetalhesPasso: (.*) \|\|\| (.*)\)$/);
@@ -62,10 +70,8 @@ export function DefectModal({ executionGroup, onClose }) {
     if (matchOld) return { cleanTitle: matchOld[1], acao: matchOld[2], esperado: null };
     return { cleanTitle: fullTitle, acao: null, esperado: null };
   };
-
-  const handleFixAll = async () => {
-    if (!window.confirm("Isso marcará todos os defeitos como 'Corrigido' e enviará a execução para 'Reteste'. Confirmar?")) return;
-    
+  
+  const executeFixAll = async () => {
     setProcessing(true);
     try {
       const promises = executionGroup.defeitos.map(def => 
@@ -78,8 +84,9 @@ export function DefectModal({ executionGroup, onClose }) {
       );
 
       await Promise.all(promises);
-      success("Todos os defeitos corrigidos! Tarefa enviada para Reteste.");
-      onClose(true); 
+      success("Todos os defeitos corrigidos! Tarefa enviada para Reteste.");      
+      setIsConfirmModalOpen(false);
+      onClose(true);
     } catch (err) {
       console.error(err);
       error("Erro ao atualizar defeitos.");
@@ -216,9 +223,10 @@ export function DefectModal({ executionGroup, onClose }) {
           
           {user?.role !== 'user' && (
             <button 
-                className="btn-success" 
-                onClick={handleFixAll} 
-                disabled={processing}
+                className="btn-success"
+                onClick={() => setIsConfirmModalOpen(true)} 
+                disabled={processing || !hasOpenDefects}
+                title={!hasOpenDefects ? "Não há defeitos em aberto para retestar" : ""}
             >
                 {processing ? 'Processando...' : 'Corrigir Tudo e Retestar'}
             </button>
@@ -226,6 +234,17 @@ export function DefectModal({ executionGroup, onClose }) {
         </div>
 
       </div>
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={executeFixAll}
+        title="Confirmar Reteste"
+        message="Isso marcará todos os defeitos como 'Corrigido' e enviará a execução para 'Reteste'. Deseja continuar?"
+        confirmText="Sim, Corrigir"
+        cancelText="Cancelar"
+        isDanger={false}
+      />
+
     </div>
   );
 }
