@@ -49,7 +49,7 @@ async def seed_ciclos(session: AsyncSession):
                     nome=data["nome"],
                     descricao=data["desc"],
                     projeto_id=project.id,
-                    status=StatusCicloEnum.planejado,
+                    status=StatusCicloEnum.em_execucao,
                     data_inicio=data["inicio"],
                     data_fim=data["fim"]
                 )
