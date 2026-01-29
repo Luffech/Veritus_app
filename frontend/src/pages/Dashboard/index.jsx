@@ -139,6 +139,21 @@ export function Dashboard() {
   // Garante estrutura segura caso a API falhe parcialmente
   const safeData = data || { kpis: {}, charts: {} };
 
+  // --- LÓGICA DE VISUALIZAÇÃO ---
+  // Tenta ler o novo campo do backend. Se não existir (backend antigo), tenta calcular ou mostra 0.
+  let totalFinalizados = safeData.kpis.total_testes_finalizados;
+
+  if (totalFinalizados === undefined) {
+      // Fallback: Se o backend ainda não manda o campo, calculamos somando status finais do gráfico
+      if (safeData.charts?.status_execucao) {
+          totalFinalizados = safeData.charts.status_execucao
+            .filter(item => ['concluido', 'falhou', 'bloqueado', 'passou', 'falha', 'fechado'].includes(item.label.toLowerCase()))
+            .reduce((acc, curr) => acc + curr.value, 0);
+      } else {
+          totalFinalizados = 0;
+      }
+  }
+
   return (
     <main className="container dashboard-container">
       
@@ -195,7 +210,14 @@ export function Dashboard() {
         </div>
         <KpiCard value={safeData.kpis.total_ciclos_ativos || 0} label="CICLOS RODANDO" color="#10b981" gradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)" />
         <KpiCard value={safeData.kpis.total_casos_teste || 0} label="TOTAL DE CASOS" color="#8b5cf6" gradient="linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)" />
-        <KpiCard value={`${safeData.kpis.taxa_sucesso_ciclos || 0}%`} label="TAXA DE SUCESSO" color="#059669" gradient="linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" />
+        
+        {/* KPI ALTERADO: Agora mostra testes finalizados */}
+        <KpiCard 
+            value={totalFinalizados} 
+            label="TESTES FINALIZADOS" 
+            color="#059669" 
+            gradient="linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)" 
+        />
         
         <KpiCard value={safeData.kpis.total_defeitos_abertos || 0} label="BUGS ABERTOS" color="#ef4444" gradient="linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)" />
         <KpiCard value={safeData.kpis.total_defeitos_criticos || 0} label="BUGS CRÍTICOS" color="#991b1b" gradient="linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)" />
