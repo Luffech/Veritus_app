@@ -26,8 +26,8 @@ export function DefectModal({ executionGroup, onClose }) {
       scrollRef.current.scrollTop = 0;
     }
   }, [statusFilter]);
-
-  // Verifica se existe pelo menos um defeito com status 'aberto'
+  
+  // Verifica se há defeitos em aberto
   const hasOpenDefects = useMemo(() => {
     return executionGroup.defeitos?.some(d => d.status === 'aberto');
   }, [executionGroup.defeitos]);
@@ -72,9 +72,19 @@ export function DefectModal({ executionGroup, onClose }) {
   };
   
   const executeFixAll = async () => {
+    const defectsToFix = executionGroup.defeitos.filter(d => d.status === 'aberto');
+    const countChanged = defectsToFix.length;
+
+    if (countChanged === 0) {
+        success("Todos os defeitos já estão corrigidos.");
+        setIsConfirmModalOpen(false);
+        onClose(false);
+        return;
+    }
+
     setProcessing(true);
     try {
-      const promises = executionGroup.defeitos.map(def => 
+      const promises = defectsToFix.map(def => 
         api.put(`/defeitos/${def.id}`, { 
           status: 'corrigido',
           titulo: def.titulo,
@@ -84,7 +94,8 @@ export function DefectModal({ executionGroup, onClose }) {
       );
 
       await Promise.all(promises);
-      success("Todos os defeitos corrigidos! Tarefa enviada para Reteste.");      
+
+      success(`${countChanged} defeito(s) corrigido(s)! Tarefa enviada para Reteste.`);      
       setIsConfirmModalOpen(false);
       onClose(true);
     } catch (err) {
@@ -239,7 +250,7 @@ export function DefectModal({ executionGroup, onClose }) {
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={executeFixAll}
         title="Confirmar Reteste"
-        message="Isso marcará todos os defeitos como 'Corrigido' e enviará a execução para 'Reteste'. Deseja continuar?"
+        message="Isso marcará todos os defeitos ABERTOS como 'Corrigido' e enviará a execução para 'Reteste'. Deseja continuar?"
         confirmText="Sim, Corrigir"
         cancelText="Cancelar"
         isDanger={false}
