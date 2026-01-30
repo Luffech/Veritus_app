@@ -12,6 +12,15 @@ async def seed_sistemas(session: AsyncSession):
             ativo=True
         )
         session.add(sys_sap)
-        await session.flush()
 
+    veritus_sys = await session.execute(select(Sistema).where(Sistema.nome == 'Veritus'))
+    if not veritus_sys.scalars().first():
+        sys_veritus = Sistema(
+            nome='Veritus',
+            descricao='Plataforma de Gestão e Execução de Testes Manuais',
+            ativo=True
+        )
+        session.add(sys_veritus)
+    
+    await session.flush()
     print("Systems seeded.")
