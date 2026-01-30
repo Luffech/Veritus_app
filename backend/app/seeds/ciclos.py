@@ -58,7 +58,7 @@ async def seed_ciclos(session: AsyncSession):
                     nome=data["nome"],
                     descricao=data["desc"],
                     projeto_id=project_inv.id,
-                    status=StatusCicloEnum.planejado,
+                    status=StatusCicloEnum.em_execucao,
                     data_inicio=data["inicio"],
                     data_fim=data["fim"]
                 )
@@ -88,7 +88,7 @@ async def seed_ciclos(session: AsyncSession):
                 nome=ciclo_data_security["nome"],
                 descricao=ciclo_data_security["desc"],
                 projeto_id=project_security.id,
-                status=StatusCicloEnum.planejado,
+                status=StatusCicloEnum.em_execucao,
                 data_inicio=ciclo_data_security["inicio"],
                 data_fim=ciclo_data_security["fim"]
             )
@@ -116,7 +116,7 @@ async def seed_ciclos(session: AsyncSession):
                 nome=ciclo_data_admin["nome"],
                 descricao=ciclo_data_admin["desc"],
                 projeto_id=project_admin.id,
-                status=StatusCicloEnum.planejado,
+                status=StatusCicloEnum.em_execucao,
                 data_inicio=ciclo_data_admin["inicio"],
                 data_fim=ciclo_data_admin["fim"]
             )
@@ -144,7 +144,7 @@ async def seed_ciclos(session: AsyncSession):
                 nome=ciclo_data_qa["nome"],
                 descricao=ciclo_data_qa["desc"],
                 projeto_id=project_qa.id,
-                status=StatusCicloEnum.planejado,
+                status=StatusCicloEnum.em_execucao,
                 data_inicio=ciclo_data_qa["inicio"],
                 data_fim=ciclo_data_qa["fim"]
             )
@@ -172,7 +172,7 @@ async def seed_ciclos(session: AsyncSession):
                 nome=ciclo_data_test["nome"],
                 descricao=ciclo_data_test["desc"],
                 projeto_id=project_test.id,
-                status=StatusCicloEnum.planejado,
+                status=StatusCicloEnum.em_execucao,
                 data_inicio=ciclo_data_test["inicio"],
                 data_fim=ciclo_data_test["fim"]
             )
@@ -200,7 +200,7 @@ async def seed_ciclos(session: AsyncSession):
                 nome=ciclo_data_analytics["nome"],
                 descricao=ciclo_data_analytics["desc"],
                 projeto_id=project_analytics.id,
-                status=StatusCicloEnum.planejado,
+                status=StatusCicloEnum.em_execucao,
                 data_inicio=ciclo_data_analytics["inicio"],
                 data_fim=ciclo_data_analytics["fim"]
             )

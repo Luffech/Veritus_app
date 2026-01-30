@@ -8,10 +8,9 @@ class DashboardKPI(BaseModel):
     total_projetos: int
     total_ciclos_ativos: int
     total_casos_teste: int    
-    taxa_sucesso_ciclos: float    
+    total_testes_finalizados: int   
     total_defeitos_abertos: int
-    total_defeitos_criticos: int    
-    
+    total_defeitos_criticos: int        
     total_pendentes: int
     total_bloqueados: int
     total_aguardando_reteste: int

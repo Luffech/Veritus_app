@@ -25,18 +25,23 @@ class DefeitoRepository:
             selectinload(Defeito.execucao).selectinload(ExecucaoTeste.responsavel).selectinload(Usuario.nivel_acesso),
             selectinload(Defeito.execucao).selectinload(ExecucaoTeste.passos_executados).selectinload(ExecucaoPasso.passo_template)
         ]
-
-    # --- MÉTODOS DE ESCRITA (HEAD - Com suporte a JSON) ---
+    # Logs auxiliar para o endpoint
+    async def get_nome_teste_por_execucao(self, execucao_id: int) -> Optional[str]:
+        query = (
+            select(CasoTeste.nome)
+            .select_from(ExecucaoTeste)
+            .join(CasoTeste, ExecucaoTeste.caso_teste_id == CasoTeste.id)
+            .where(ExecucaoTeste.id == execucao_id)
+        )
+        result = await self.db.execute(query)
+        return result.scalar()
 
     async def create(self, dados: DefeitoCreate) -> Defeito:
-        # Prepara dados e converte lista de evidências para string JSON
         dados_dict = dados.model_dump()
         if dados_dict.get('evidencias'):
             dados_dict['evidencias'] = json.dumps(dados_dict['evidencias'])
         else:
             dados_dict['evidencias'] = json.dumps([])
-
-        # 1. Blindagem: Evita duplicidade
         query_existente = (
             select(Defeito)
             .options(*self._get_load_options()) 
@@ -52,13 +57,9 @@ class DefeitoRepository:
 
         if defeito_existente:
             return defeito_existente
-
-        # 2. Criação
         novo_defeito = Defeito(**dados_dict)
         self.db.add(novo_defeito)
         await self.db.commit()
-        
-        # 3. Recarrega
         query_novo = (
             select(Defeito)
             .options(*self._get_load_options()) 
@@ -73,8 +74,6 @@ class DefeitoRepository:
             return None
             
         update_data = dados.model_dump(exclude_unset=True)
-        
-        # Converte lista para JSON String se houver evidências na atualização
         if 'evidencias' in update_data and isinstance(update_data['evidencias'], list):
              update_data['evidencias'] = json.dumps(update_data['evidencias'])
 
@@ -92,8 +91,6 @@ class DefeitoRepository:
             return True
         return False
 
-    # --- MÉTODOS DE LEITURA ---
-
     async def get_by_id(self, id: int) -> Optional[Defeito]:
         query = (
             select(Defeito)
@@ -103,7 +100,6 @@ class DefeitoRepository:
         result = await self.db.execute(query)
         return result.scalars().first()
 
-    # Trazido da MAIN (Necessário para o Service)
     async def get_by_execucao(self, execucao_id: int) -> Sequence[Defeito]:
         query = (
             select(Defeito)
@@ -113,7 +109,6 @@ class DefeitoRepository:
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    # Mantido do HEAD (Essencial para a Tabela do Dashboard)
     async def get_all_with_details(self, responsavel_id: Optional[int] = None):
         Runner = aliased(Usuario)  
         Manager = aliased(Usuario) 

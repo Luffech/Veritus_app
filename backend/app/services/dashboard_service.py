@@ -17,7 +17,9 @@ class DashboardService:
         "fechado": "#10b981",       
         "bloqueado": "#ef4444",     
         "passou": "#10b981",
-        "falha": "#ef4444" 
+        "falha": "#ef4444",
+        "concluido": "#10b981", # Adicionado para garantir compatibilidade
+        "falhou": "#ef4444"     # Adicionado para garantir compatibilidade
     }
 
     SEVERITY_COLORS = {
@@ -36,12 +38,27 @@ class DashboardService:
         severity_data = await self.repo.get_defeitos_por_severidade(sistema_id)
         modules_data = await self.repo.get_modulos_com_mais_defeitos(limit=5, sistema_id=sistema_id)
 
+        # --- LÓGICA NOVA: Calcular Total de Testes Finalizados ---
+        # Consideramos finalizados: 'passou', 'falhou', 'bloqueado', 'fechado', 'concluido'
+        # Usamos os dados que já vieram do banco (exec_status_data) para evitar nova query
+        status_finalizados = ["passou", "falhou", "bloqueado", "fechado", "concluido", "falha"]
+        
+        total_finalizados = sum(
+            count for item, count in exec_status_data
+            if self._normalize_key(item) in status_finalizados
+        )
+
         # kpis
         kpis = DashboardKPI(
             total_projetos=kpis_data.get("total_projetos", 0),
             total_ciclos_ativos=kpis_data.get("total_ciclos_ativos", 0),
             total_casos_teste=kpis_data.get("total_casos_teste", 0),
-            taxa_sucesso_ciclos=kpis_data.get("taxa_sucesso_ciclos", 0.0),
+            
+            # ALTERADO AQUI: Passamos o total calculado.
+            # Nota: O Schema DashboardKPI deve ter o campo 'total_testes_finalizados'
+            # Se ainda não tiver, terá de alterar o schema ou usar o campo antigo 'taxa_sucesso_ciclos' provisoriamente
+            total_testes_finalizados=total_finalizados, 
+            
             total_defeitos_abertos=kpis_data.get("total_defeitos_abertos", 0),
             total_defeitos_criticos=kpis_data.get("total_defeitos_criticos", 0),
             total_pendentes=kpis_data.get("total_pendentes", 0),
@@ -155,10 +172,11 @@ class DashboardService:
             dist_data = await self.repo.get_status_distribution(None)
             rigor_chart = self._format_chart_data(dist_data, self.STATUS_COLORS)
 
-        # CORREÇÃO AQUI: item já é um objeto date, removemos o .date
+        # CORREÇÃO AQUI: item já é um objeto date, removemos o .date se necessário, 
+        # mas aqui assumimos que é date. Adicionado check para evitar erro em None.
         velocity_chart = [
             ChartDataPoint(
-                label=item.strftime("%d/%m"), 
+                label=item.strftime("%d/%m") if item else "Data Inválida", 
                 value=count,
                 color="#3b82f6"
             ) for item, count in velocity_data
