@@ -12,8 +12,11 @@
   background: white;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  overflow-y: auto;
-  padding: 16px;
+  display: flex;          
+  flex-direction: column; 
+  height: 100%;     
+  overflow: hidden;     
+  padding: 0;             
 }
 
 .emptyState {
@@ -24,8 +27,10 @@
 
 .taskList {
   list-style: none;
-  padding: 0;
+  padding: 16px;         
   margin: 0;
+  flex: 1;              
+  overflow-y: auto;       
 }
 
 .taskItem {
@@ -498,4 +503,58 @@
   opacity: 0.9;
   line-height: 1.4;
   white-space: pre-wrap; /* Mantém quebras de linha se houver */
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px; 
+  margin-top: auto; 
+  margin-bottom: 5%;
+  padding-top: 15px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pagination-btn {
+  min-width: 32px; 
+  height: 32px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.pagination-btn.active {
+  background-color: #001C42;
+  color: #ffffff;
+  border-color: #001C42;
+}
+
+.pagination-btn.nav-btn {
+  font-size: 1.1rem; 
+  font-weight: bold;
+  background-color: #f1f5f9;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #cbd5e1;
 }
