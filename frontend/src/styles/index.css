@@ -746,19 +746,16 @@ html {
     box-shadow 0.25s ease;
 }
 
-/* Hover */
 .theme-toggle-btn:hover {
   background-color: var(--icon-hover-bg);
   transform: scale(1.08);
 }
 
-/* Click */
 .theme-toggle-btn:active {
   background-color: var(--icon-active-bg);
   transform: scale(0.95);
 }
 
-/* Acessibilidade teclado */
 .theme-toggle-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--light-blue);
@@ -774,3 +771,25 @@ html {
   background: transparent;
 }
 
+.card {
+  display: flex;
+  flex-direction: column;
+}
+.table-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.content-area {
+  flex: 1;
+  overflow-x: auto;
+}
+
+.pagination-container {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  background-color: inherit;
+}
