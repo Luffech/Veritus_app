@@ -118,10 +118,6 @@ td {
     vertical-align: middle;
 }
 
-tr.selectable:hover td {
-    background-color: #f8fafc;
-}
-
 .cell-id {
     font-family: monospace;
     color: #94a3b8;
