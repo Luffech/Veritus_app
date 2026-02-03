@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Sequence, Optional
+from typing import Sequence
 from app.core.database import AsyncSessionLocal
-from app.schemas import SistemaCreate, SistemaResponse, SistemaUpdate
+from app.schemas.sistema import SistemaCreate, SistemaResponse, SistemaUpdate
 from app.services.sistema_service import SistemaService
 from app.services.log_service import LogService
 from app.api.deps import get_current_active_user
@@ -17,7 +17,7 @@ async def get_db_session() -> AsyncSession:
 def get_sistema_service(db: AsyncSession = Depends(get_db_session)) -> SistemaService:
     return SistemaService(db)
 
-@router.post("/", response_model=SistemaResponse, status_code=status.HTTP_201_CREATED, summary="Criar um novo sistema")
+@router.post("/", response_model=SistemaResponse, status_code=status.HTTP_201_CREATED)
 async def create_sistema(
     sistema: SistemaCreate,
     service: SistemaService = Depends(get_sistema_service),
@@ -25,7 +25,6 @@ async def create_sistema(
     current_user: Usuario = Depends(get_current_active_user)
 ):
     novo_sistema = await service.create_sistema(sistema)
-    
     log_service = LogService(db)
     await log_service.registrar_acao(
         usuario_id=current_user.id,
@@ -33,30 +32,23 @@ async def create_sistema(
         entidade="Sistema",
         entidade_id=novo_sistema.id,
         sistema_id=novo_sistema.id,
-        detalhes=f"Criou o sistema '{novo_sistema.nome}'"
+        detalhes=f"Criou o sistema '{novo_sistema.nome}'",
+        entidade_nome=novo_sistema.nome 
     )
-    
     return novo_sistema
 
-@router.get("/", response_model=Sequence[SistemaResponse], summary="Listar todos os sistemas")
-async def get_sistemas(
-    service: SistemaService = Depends(get_sistema_service),
-    current_user: Usuario = Depends(get_current_active_user)
-):
+@router.get("/", response_model=Sequence[SistemaResponse])
+async def get_sistemas(service: SistemaService = Depends(get_sistema_service), current_user: Usuario = Depends(get_current_active_user)):
     return await service.get_all_sistemas()
 
-@router.get("/{sistema_id}", response_model=SistemaResponse, summary="Obter um sistema por ID")
-async def get_sistema(
-    sistema_id: int,
-    service: SistemaService = Depends(get_sistema_service),
-    current_user: Usuario = Depends(get_current_active_user)
-):
+@router.get("/{sistema_id}", response_model=SistemaResponse)
+async def get_sistema(sistema_id: int, service: SistemaService = Depends(get_sistema_service), current_user: Usuario = Depends(get_current_active_user)):
     db_sistema = await service.get_sistema_by_id(sistema_id)
     if db_sistema is None:
         raise HTTPException(status_code=404, detail="Sistema não encontrado")
     return db_sistema
 
-@router.put("/{sistema_id}", response_model=SistemaResponse, summary="Atualizar um sistema")
+@router.put("/{sistema_id}", response_model=SistemaResponse)
 async def update_sistema(
     sistema_id: int,
     sistema: SistemaUpdate,
@@ -67,7 +59,6 @@ async def update_sistema(
     updated_sistema = await service.update_sistema(sistema_id, sistema)
     if not updated_sistema:
         raise HTTPException(status_code=404, detail="Sistema não encontrado")
-    
     log_service = LogService(db)
     await log_service.registrar_acao(
         usuario_id=current_user.id,
@@ -75,33 +66,39 @@ async def update_sistema(
         entidade="Sistema",
         entidade_id=updated_sistema.id,
         sistema_id=updated_sistema.id,
-        detalhes=f"Atualizou o sistema '{updated_sistema.nome}'"
+        detalhes=f"Atualizou o sistema '{updated_sistema.nome}'",
+        entidade_nome=updated_sistema.nome
     )
-
     return updated_sistema
 
-@router.delete("/{sistema_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Apagar um sistema")
+@router.delete("/{sistema_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_sistema(
     sistema_id: int,
-    service: SistemaService = Depends(get_sistema_service),
-    db: AsyncSession = Depends(get_db_session),
+    service: SistemaService = Depends(get_sistema_service), 
+    db: AsyncSession = Depends(get_db_session), 
     current_user: Usuario = Depends(get_current_active_user)
 ):
-    sistema_antigo = await service.get_sistema_by_id(sistema_id)
-    nome_sistema = sistema_antigo.nome if sistema_antigo else str(sistema_id)
-
-    success = await service.delete_sistema(sistema_id)
-    if not success:
+    sistema = await service.get_sistema_by_id(sistema_id)
+    if not sistema:
         raise HTTPException(status_code=404, detail="Sistema não encontrado")
+    nome_snapshot = sistema.nome 
+    sucesso = await service.delete_sistema(sistema_id)
     
-    log_service = LogService(db)
-    await log_service.registrar_acao(
-        usuario_id=current_user.id,
-        acao="DELETAR",
-        entidade="Sistema",
-        entidade_id=sistema_id,
-        sistema_id=sistema_id,
-        detalhes=f"Apagou o sistema '{nome_sistema}'"
-    )
-    
-    return
+    if not sucesso:
+        raise HTTPException(
+            status_code=409, 
+            detail="Não é possível excluir este sistema pois existem projetos ou dados vinculados a ele."
+        )
+    try:
+        log_service = LogService(db)
+        await log_service.registrar_acao(
+            usuario_id=current_user.id,
+            acao="DELETAR",
+            entidade="Sistema",
+            entidade_id=sistema_id,
+            detalhes=f"Apagou o sistema '{nome_snapshot}'",
+            sistema_id=None,
+            entidade_nome=nome_snapshot
+        )
+    except Exception as e:
+        print(f"Erro log: {e}")

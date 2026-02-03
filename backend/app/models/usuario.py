@@ -21,3 +21,4 @@ class Usuario(Base):
     nivel_acesso = relationship("NivelAcesso", back_populates="usuarios")
     projetos_gerenciados = relationship("Projeto", back_populates="responsavel")
     execucoes_atribuidas = relationship("ExecucaoTeste", back_populates="responsavel")
+    logs = relationship("LogSistema", back_populates="usuario")

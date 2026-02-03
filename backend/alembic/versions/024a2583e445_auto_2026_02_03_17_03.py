@@ -1,8 +1,8 @@
-"""Auto: 2026-01-29 18:59
+"""Auto: 2026-02-03 17:03
 
-Revision ID: 8c2d99005e27
+Revision ID: 024a2583e445
 Revises: 
-Create Date: 2026-01-29 18:59:26.155667
+Create Date: 2026-02-03 17:03:38.784627
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '8c2d99005e27'
+revision: str = '024a2583e445'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -72,6 +72,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_usuarios_email'), 'usuarios', ['email'], unique=True)
     op.create_index(op.f('ix_usuarios_id'), 'usuarios', ['id'], unique=False)
     op.create_index(op.f('ix_usuarios_username'), 'usuarios', ['username'], unique=True)
+    op.create_table('logs_sistema',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('usuario_id', sa.Integer(), nullable=True),
+    sa.Column('sistema_id', sa.Integer(), nullable=True),
+    sa.Column('entidade_nome', sa.String(), nullable=True),
+    sa.Column('acao', sa.String(), nullable=True),
+    sa.Column('entidade', sa.String(), nullable=True),
+    sa.Column('entidade_id', sa.Integer(), nullable=True),
+    sa.Column('detalhes', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.ForeignKeyConstraint(['sistema_id'], ['sistemas.id'], ),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_logs_sistema_id'), 'logs_sistema', ['id'], unique=False)
     op.create_table('password_resets',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('id_usuario', sa.Integer(), nullable=True),
@@ -232,6 +247,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_projetos_id'), table_name='projetos')
     op.drop_table('projetos')
     op.drop_table('password_resets')
+    op.drop_index(op.f('ix_logs_sistema_id'), table_name='logs_sistema')
+    op.drop_table('logs_sistema')
     op.drop_index(op.f('ix_usuarios_username'), table_name='usuarios')
     op.drop_index(op.f('ix_usuarios_id'), table_name='usuarios')
     op.drop_index(op.f('ix_usuarios_email'), table_name='usuarios')

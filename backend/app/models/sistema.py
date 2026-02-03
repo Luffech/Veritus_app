@@ -16,3 +16,4 @@ class Sistema(Base):
 
     modulos = relationship("Modulo", back_populates="sistema")
     projetos = relationship("Projeto", back_populates="sistema")
+    logs = relationship("LogSistema", back_populates="sistema")
