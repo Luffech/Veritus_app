@@ -1,3 +1,267 @@
+/* --- LAYOUT E ESTRUTURA --- */
+.container {
+    padding: 20px;
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+/* --- TOOLBAR (Título Esq | Ações Dir) --- */
+.toolbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 1rem;
+    flex-wrap: wrap; /* Permite quebrar linha em telas pequenas */
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Área da Direita (Busca + Select) */
+.toolbar .search-wrapper {
+    /* Ajustes para o input de busca na toolbar */
+    width: 260px; 
+    margin: 0;
+}
+
+/* --- INPUTS E BUSCA --- */
+.search-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px 8px 36px; /* Espaço para o ícone */
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.875rem;
+    background-color: #fff;
+    color: #334155;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.875rem;
+    color: #334155;
+    background-color: #fff;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* --- TABELA --- */
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+th {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: middle;
+}
+
+tr.selectable:hover td {
+    background-color: #f8fafc;
+}
+
+.cell-id {
+    font-family: monospace;
+    color: #94a3b8;
+    font-weight: bold;
+}
+
+/* --- FILTROS NO CABEÇALHO (TH) --- */
+.th-filter-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    height: 100%;
+}
+
+.th-label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.th-label:hover {
+    color: #3b82f6;
+}
+
+.th-search-input {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #3b82f6;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+}
+
+/* DROPDOWN FLUTUANTE (Usado para Data e Ação) */
+.custom-dropdown {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    z-index: 100;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.custom-dropdown li {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.custom-dropdown li:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.btn-clear-filter {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Botões dentro do Dropdown de Data */
+.btn-primary {
+    background-color: #0f172a;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-primary:hover { background-color: #1e293b; }
+
+.btn-secondary {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-secondary:hover { background-color: #e2e8f0; }
+
+/* --- PAGINAÇÃO --- */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 20px;
+}
+
+.pagination-btn {
+    min-width: 32px;
+    height: 32px;
+    border: 1px solid #e2e8f0;
+    background-color: #fff;
+    color: #64748b;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.pagination-btn.active {
+    background-color: #0f172a;
+    color: white;
+    border-color: #0f172a;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* --- ESTILOS DO USUÁRIO (MANTIDOS INTACTOS) --- */
+
 .logs-page-container {
     padding: 20px;
     max-width: 100%;
@@ -37,30 +301,6 @@
   color: #4338ca;
   border: 1px solid #c7d2fe;
 }
-
-/* .log-action-CRIAR {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-}
-
-.log-action-ATUALIZAR {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #bfdbfe;
-}
-
-.log-action-DELETAR {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-}
-
-.log-action-LOGIN {
-    background-color: #f3f4f6;
-    color: #4b5563;
-    border: 1px solid #e5e7eb;
-} */
 
 .log-entidade-badge {
     background-color: #f8fafc;
