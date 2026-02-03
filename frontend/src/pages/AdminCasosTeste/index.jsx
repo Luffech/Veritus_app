@@ -91,7 +91,7 @@ const SearchableSelect = ({ options = [], value, onChange, placeholder, disabled
         <ul className="custom-dropdown" style={{ width: '100%', top: '100%', zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
             {/* Opção Fixa para Limpar */}
             <li onClick={handleClear} style={{ color: '#3b82f6', fontWeight: 'bold', borderBottom: '1px solid #eee' }}>
-                Todos os Projetos
+                Todos
             </li>
 
           {displayOptions.length === 0 ? (
