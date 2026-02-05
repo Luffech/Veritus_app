@@ -190,7 +190,14 @@ export function AdminUsers() {
   const handleDelete = async () => {
     if (!itemToDelete) return;
     try { await api.delete(`/usuarios/${itemToDelete.id}`); success("Usuário removido."); loadData(); } 
-    catch (e) { error("Erro ao excluir."); } 
+    catch (e) {
+      const detail = e.response?.data?.detail;
+      if (typeof detail === 'string' && detail.toLowerCase().includes('desativado')) {
+        error("Não é possível excluir um usuário com status Ativo. Desative-o antes de excluir.");
+      } else {
+        error(typeof detail === 'string' ? detail : "Erro ao excluir.");
+      }
+    } 
     finally { setIsDeleteModalOpen(false); setItemToDelete(null); }
   };
 

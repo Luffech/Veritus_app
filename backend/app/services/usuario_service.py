@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DBAPIError
 from typing import Sequence, Optional
 from fastapi import HTTPException, status
 
@@ -76,6 +76,20 @@ class UsuarioService:
                 "username": "ID de usuário já em uso por outra pessoa.",
                 "email": "Este email já está em uso por outra pessoa."
             })
+
+        except DBAPIError as e:
+            await self.repo.db.rollback()
+            raw_message = str(e.orig).lower() if e.orig else str(e).lower()
+            if "value too long for type character varying(50)" in raw_message:
+                raise HTTPException(
+                    status_code=400,
+                    detail="O username pode ter no máximo 50 caracteres."
+                )
+            raise HTTPException(
+                status_code=400,
+                detail="Erro ao atualizar usuário. Verifique os dados informados."
+            )
+
 
     async def delete_usuario(self, usuario_id: int) -> bool:
         usuario_alvo = await self.repo.get_by_id(usuario_id)        

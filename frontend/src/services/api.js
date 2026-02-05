@@ -59,7 +59,11 @@ async function request(endpoint, options = {}) {
             ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
             : (data?.message || "Erro na requisição");
             
-        throw new Error(errorMessage);
+        const apiError = new Error(errorMessage);
+        apiError.status = response.status;
+        apiError.data = data;
+        apiError.response = { status: response.status, data };
+        throw apiError;
     }
 
     return data;
