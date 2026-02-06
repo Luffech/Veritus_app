@@ -9,34 +9,56 @@ export const getSession = () => ({
 
 export const clearSession = () => {
   sessionStorage.clear();
-  window.location.href = "/"; 
+  window.location.href = "/";
 };
+
+function buildUrl(baseUrl, params) {
+  if (!params || typeof params !== "object") return baseUrl;
+
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    sp.append(key, String(value));
+  });
+
+  const qs = sp.toString();
+  if (!qs) return baseUrl;
+
+  return `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${qs}`;
+}
 
 async function request(endpoint, options = {}) {
   const { token } = getSession();
-  
+
   const headers = new Headers(options.headers || {});
-  
+
   if (token) headers.append("Authorization", `Bearer ${token}`);
-  
-  const isFormData = options.body instanceof FormData || options.body instanceof URLSearchParams;
-  
+
+  const isFormData =
+    options.body instanceof FormData || options.body instanceof URLSearchParams;
+
   if (!headers.has("Content-Type") && !isFormData) {
     headers.append("Content-Type", "application/json");
   }
 
+  const { params, ...restOptions } = options;
+
   const config = {
-    ...options,
+    ...restOptions,
     headers,
   };
 
-  const url = endpoint.startsWith("http") ? endpoint : `${BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+  const rawUrl = endpoint.startsWith("http")
+    ? endpoint
+    : `${BASE_URL}${endpoint.startsWith("/") ? endpoint : "/" + endpoint}`;
+
+  const url = buildUrl(rawUrl, params);
 
   try {
     const response = await fetch(url, config);
-    
+
     const isLoginRequest = url.includes("/login");
-    if (response.status === 401 && !isLoginRequest) {
+    if ((response.status === 401 || response.status === 403) && !isLoginRequest) {
       clearSession();
       throw new Error("Sessão expirada.");
     }
@@ -53,17 +75,17 @@ async function request(endpoint, options = {}) {
     } else {
       data = {};
     }
-    
+
     if (!response.ok) {
-        const errorMessage = data?.detail 
-            ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
-            : (data?.message || "Erro na requisição");
-            
-        const apiError = new Error(errorMessage);
-        apiError.status = response.status;
-        apiError.data = data;
-        apiError.response = { status: response.status, data };
-        throw apiError;
+      const errorMessage = data?.detail
+        ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail))
+        : (data?.message || "Erro na requisição");
+
+      const apiError = new Error(errorMessage);
+      apiError.status = response.status;
+      apiError.data = data;
+      apiError.response = { status: response.status, data };
+      throw apiError;
     }
 
     return data;
@@ -75,31 +97,31 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   get: (endpoint, options = {}) => request(endpoint, { method: "GET", ...options }),
-  
+
   post: (endpoint, body, options = {}) => {
     const isBinary = body instanceof FormData || body instanceof URLSearchParams;
-    return request(endpoint, { 
-        method: "POST", 
-        body: isBinary ? body : JSON.stringify(body),
-        ...options 
+    return request(endpoint, {
+      method: "POST",
+      body: isBinary ? body : JSON.stringify(body),
+      ...options,
     });
   },
-  
+
   put: (endpoint, body, options = {}) => {
     const isBinary = body instanceof FormData || body instanceof URLSearchParams;
-    return request(endpoint, { 
-        method: "PUT", 
-        body: isBinary ? body : JSON.stringify(body),
-        ...options 
+    return request(endpoint, {
+      method: "PUT",
+      body: isBinary ? body : JSON.stringify(body),
+      ...options,
     });
   },
-  
+
   delete: (endpoint, body, options = {}) => {
-      const isBinary = body instanceof FormData || body instanceof URLSearchParams;
-      return request(endpoint, { 
-          method: "DELETE", 
-          body: body ? (isBinary ? body : JSON.stringify(body)) : null,
-          ...options 
-      });
+    const isBinary = body instanceof FormData || body instanceof URLSearchParams;
+    return request(endpoint, {
+      method: "DELETE",
+      body: body ? (isBinary ? body : JSON.stringify(body)) : null,
+      ...options,
+    });
   },
 };

@@ -123,54 +123,30 @@ class DashboardService:
 
     
     async def get_performance_analytics(self, user_id: Optional[int] = None) -> PerformanceResponse:
+        # Métricas e gráficos focados no desempenho do TESTADOR (não do teste)
         velocity_data = await self.repo.get_performance_velocity(user_id)
-        modules_data = await self.repo.get_top_offending_modules_perf(user_id)
+        modules_data = await self.repo.get_top_modules_by_defects_perf(user_id)
+        severity_data = await self.repo.get_defects_by_severity_perf(user_id)
 
-        team_stats = None
-        tester_stats = None
-        rigor_chart = []
+        team_stats: Optional[TeamStats] = None
+        tester_stats: Optional[TesterStats] = None
 
         if user_id:
-            # logica para visao individual
-            stats = await self.repo.get_user_stats_aggregates(user_id)
-            
-            total = stats["total_executions"]
-            blocked = stats["blocked_executions"]
-            
-            block_rate = 0.0
-            if total > 0:
-                block_rate = round((blocked / total) * 100, 1)
-
+            stats = await self.repo.get_tester_performance_stats(user_id)
             tester_stats = TesterStats(
-                bugs_reportados=stats["reported_bugs"],
-                total_execucoes=total,
-                taxa_bloqueio=block_rate
+                impacto_relevante=stats["impacto_relevante"],
+                execucoes_30d=stats["execucoes_30d"],
+                severidade_media=stats["severidade_media"],
+                tempo_medio_registro_horas=stats["tempo_medio_registro_horas"],
             )
-
-            dist_data = await self.repo.get_status_distribution(user_id)
-            rigor_chart = self._format_chart_data(dist_data, self.STATUS_COLORS)
-
         else:
-            stats = await self.repo.get_team_stats_aggregates()
-            
-            total_exec = stats["total_executions"]
-            passed = stats["passed_executions"]
-            defects = stats["total_defects"]
-
-            pass_rate = 0.0
-            defect_density = 0.0
-            
-            if total_exec > 0:
-                pass_rate = round((passed / total_exec) * 100, 1)
-                defect_density = round(defects / total_exec, 2)
-
+            stats = await self.repo.get_team_performance_stats()
             team_stats = TeamStats(
-                taxa_aprovacao=pass_rate,
-                densidade_defeitos=defect_density
+                efetividade=stats["efetividade"],
+                risco_ativo=stats["risco_ativo"],
+                execucoes_por_testador_30d=stats["execucoes_por_testador_30d"],
+                tempo_medio_registro_horas=stats["tempo_medio_registro_horas"],
             )
-
-            dist_data = await self.repo.get_status_distribution(None)
-            rigor_chart = self._format_chart_data(dist_data, self.STATUS_COLORS)
 
         # CORREÇÃO AQUI: item já é um objeto date, removemos o .date se necessário, 
         # mas aqui assumimos que é date. Adicionado check para evitar erro em None.
@@ -190,12 +166,14 @@ class DashboardService:
             ) for nome, count in modules_data
         ]
 
+        severity_chart = self._format_chart_data(severity_data, self.SEVERITY_COLORS)
+
         return PerformanceResponse(
             stats_equipe=team_stats,
             stats_testador=tester_stats,
             grafico_velocidade=velocity_chart,
             grafico_top_modulos=top_modules,
-            grafico_rigor=rigor_chart
+            grafico_severidade=severity_chart
         )
 
     def _normalize_key(self, item: Any) -> str:

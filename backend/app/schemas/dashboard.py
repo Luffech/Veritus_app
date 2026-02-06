@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
-# Schemas do Dashboard Geral 
+# --- SCHEMAS DO DASHBOARD GERAL ---
 
 class DashboardKPI(BaseModel):
     total_projetos: int
@@ -18,6 +18,7 @@ class DashboardKPI(BaseModel):
 class ChartDataPoint(BaseModel):
     label: str
     value: int
+    aprovados: Optional[int] = 0  # Adicionado para suportar barras duplas
     color: Optional[str] = None
 
 class DashboardCharts(BaseModel):
@@ -29,7 +30,7 @@ class DashboardResponse(BaseModel):
     kpis: DashboardKPI
     charts: DashboardCharts
 
-# Schemas do Dashboard do Executor 
+# --- SCHEMAS DO DASHBOARD DO EXECUTOR ---
 
 class RunnerKPI(BaseModel):
     total_execucoes_concluidas: int
@@ -66,23 +67,24 @@ class RunnerDashboardResponse(BaseModel):
     kpis: RunnerKPI
     charts: RunnerDashboardCharts
 
-# Schemas de Análise de Performance
+# --- SCHEMAS DE ANÁLISE DE PERFORMANCE (O QUE ESTAMOS USANDO) ---
 
 class TeamStats(BaseModel):
-    taxa_aprovacao: float        
-    densidade_defeitos: float    
+    efetividade: float
+    risco_ativo: int
+    execucoes_por_testador_30d: float
+    tempo_medio_registro_horas: float
 
 class TesterStats(BaseModel):
-    bugs_reportados: int
-    total_execucoes: int
-    taxa_bloqueio: float
+    impacto_relevante: int
+    execucoes_30d: int
+    severidade_media: float
+    tempo_medio_registro_horas: float
 
 class PerformanceResponse(BaseModel):
-    # KPIs contextuais 
     stats_equipe: Optional[TeamStats] = None
     stats_testador: Optional[TesterStats] = None
     
-    # Estrutura de gráficos compartilhada 
     grafico_velocidade: List[ChartDataPoint] = []
     grafico_top_modulos: List[ChartDataPoint] = []
-    grafico_rigor: List[ChartDataPoint] = []
+    grafico_severidade: List[ChartDataPoint] = []

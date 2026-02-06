@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, desc, case, or_
+from sqlalchemy import func, desc, case, or_, and_
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
@@ -257,16 +257,25 @@ class DashboardRepository:
         result = await self.db.execute(query)
         return result.all()
 
-    async def get_top_offending_modules_perf(self, user_id: Optional[int] = None, limit: int = 5) -> List[tuple]:
+    async def get_top_modules_by_defects_perf(self, user_id: Optional[int] = None, limit: int = 5, days: int = 30) -> List[tuple]:
+        """Top módulos onde o testador (ou equipe) está encontrando mais defeitos.
+
+        Observação: como o modelo Defeito não guarda "criado_por", atribuímos o defeito ao responsável
+        da execução (ExecucaoTeste.responsavel_id), que é o que aparece na tela de Gestão de Falhas.
+        """
+        cutoff_date = datetime.now() - timedelta(days=days)
+
         query = (
-            select(Modulo.nome, func.count(ExecucaoTeste.id))
-            .select_from(ExecucaoTeste)
+            select(Modulo.nome, func.count(Defeito.id))
+            .select_from(Defeito)
+            .join(Defeito.execucao)
             .join(ExecucaoTeste.caso_teste)
             .join(CasoTeste.projeto)
             .join(Projeto.modulo)
-            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
+            .where(Defeito.created_at >= cutoff_date)
+            .where(Defeito.status != StatusDefeitoEnum.fechado)
             .group_by(Modulo.nome)
-            .order_by(desc(func.count(ExecucaoTeste.id)))
+            .order_by(desc(func.count(Defeito.id)))
             .limit(limit)
         )
 
@@ -275,6 +284,161 @@ class DashboardRepository:
 
         result = await self.db.execute(query)
         return result.all()
+
+    async def get_defects_by_severity_perf(self, user_id: Optional[int] = None, days: int = 30) -> List[tuple]:
+        """Distribuição de severidade de defeitos (abertos) atribuídos ao testador/equipe."""
+        cutoff_date = datetime.now() - timedelta(days=days)
+        query = (
+            select(Defeito.severidade, func.count(Defeito.id))
+            .select_from(Defeito)
+            .join(Defeito.execucao)
+            .where(Defeito.created_at >= cutoff_date)
+            .where(Defeito.status != StatusDefeitoEnum.fechado)
+            .group_by(Defeito.severidade)
+        )
+        if user_id:
+            query = query.where(ExecucaoTeste.responsavel_id == user_id)
+        result = await self.db.execute(query)
+        return result.all()
+
+    async def get_team_performance_stats(self, days: int = 30) -> Dict[str, Any]:
+        """4 métricas gerais (equipe) focadas em testadores."""
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        # Execuções concluídas nos últimos N dias
+        q_total_exec_30d = (
+            select(func.count(ExecucaoTeste.id))
+            .where(ExecucaoTeste.updated_at >= cutoff_date)
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
+        )
+
+        # Testadores ativos no período (quem executou pelo menos 1)
+        q_active_testers = (
+            select(func.count(func.distinct(ExecucaoTeste.responsavel_id)))
+            .where(ExecucaoTeste.updated_at >= cutoff_date)
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
+        )
+
+        # Defeitos relevantes (ALTO/CRITICO) no período
+        q_relevants = (
+            select(func.count(Defeito.id))
+            .select_from(Defeito)
+            .where(Defeito.created_at >= cutoff_date)
+            .where(Defeito.status != StatusDefeitoEnum.fechado)
+            .where(Defeito.severidade.in_([SeveridadeDefeitoEnum.alto, SeveridadeDefeitoEnum.critico]))
+        )
+
+        # Risco ativo (peso por severidade) - defeitos abertos no período (ou ainda abertos, independente da data)
+        # Aqui usamos "status != fechado" para refletir risco ainda vivo.
+        q_risco = (
+            select(
+                func.sum(
+                    case(
+                        (Defeito.severidade == SeveridadeDefeitoEnum.critico, 3),
+                        (Defeito.severidade == SeveridadeDefeitoEnum.alto, 2),
+                        (Defeito.severidade == SeveridadeDefeitoEnum.medio, 1),
+                        else_=0,
+                    )
+                )
+            )
+            .select_from(Defeito)
+            .where(Defeito.status != StatusDefeitoEnum.fechado)
+        )
+
+        # Tempo médio para registrar defeito (horas) - quando dá para calcular
+        q_tempo_registro = (
+            select(
+                func.avg(func.extract('epoch', (Defeito.created_at - ExecucaoTeste.updated_at)) / 3600.0)
+            )
+            .select_from(Defeito)
+            .join(Defeito.execucao)
+            .where(Defeito.created_at >= cutoff_date)
+            .where(ExecucaoTeste.updated_at.isnot(None))
+        )
+
+        total_exec_30d = (await self.db.execute(q_total_exec_30d)).scalar() or 0
+        active_testers = (await self.db.execute(q_active_testers)).scalar() or 0
+        relevants = (await self.db.execute(q_relevants)).scalar() or 0
+        risco = (await self.db.execute(q_risco)).scalar() or 0
+        tempo_med = (await self.db.execute(q_tempo_registro)).scalar()
+
+        # efetividade = defeitos relevantes por execução (quanto o time encontra de coisa séria por execução)
+        efetividade = round((relevants / total_exec_30d), 2) if total_exec_30d > 0 else 0.0
+        exec_por_testador = round((total_exec_30d / active_testers), 1) if active_testers > 0 else float(total_exec_30d)
+        tempo_med_horas = round(max(0.0, float(tempo_med or 0.0)), 2)
+
+        return {
+            "efetividade": efetividade,
+            "risco_ativo": int(risco or 0),
+            "execucoes_por_testador_30d": exec_por_testador,
+            "tempo_medio_registro_horas": tempo_med_horas,
+        }
+
+    async def get_tester_performance_stats(self, user_id: int, days: int = 30) -> Dict[str, Any]:
+        """4 métricas individuais (testador) focadas em desempenho."""
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        # Execuções concluídas no período
+        q_exec_30d = (
+            select(func.count(ExecucaoTeste.id))
+            .where(ExecucaoTeste.responsavel_id == user_id)
+            .where(ExecucaoTeste.updated_at >= cutoff_date)
+            .where(ExecucaoTeste.status_geral.in_([StatusExecucaoEnum.fechado, StatusExecucaoEnum.falha, StatusExecucaoEnum.bloqueado]))
+        )
+
+        # Defeitos relevantes atribuídos ao testador (pela execução)
+        q_impacto = (
+            select(func.count(Defeito.id))
+            .select_from(Defeito)
+            .join(Defeito.execucao)
+            .where(ExecucaoTeste.responsavel_id == user_id)
+            .where(Defeito.created_at >= cutoff_date)
+            .where(Defeito.status != StatusDefeitoEnum.fechado)
+            .where(Defeito.severidade.in_([SeveridadeDefeitoEnum.alto, SeveridadeDefeitoEnum.critico]))
+        )
+
+        # Severidade média ponderada dos defeitos do período
+        q_sev_media = (
+            select(
+                func.avg(
+                    case(
+                        (Defeito.severidade == SeveridadeDefeitoEnum.critico, 4),
+                        (Defeito.severidade == SeveridadeDefeitoEnum.alto, 3),
+                        (Defeito.severidade == SeveridadeDefeitoEnum.medio, 2),
+                        (Defeito.severidade == SeveridadeDefeitoEnum.baixo, 1),
+                        else_=0,
+                    )
+                )
+            )
+            .select_from(Defeito)
+            .join(Defeito.execucao)
+            .where(ExecucaoTeste.responsavel_id == user_id)
+            .where(Defeito.created_at >= cutoff_date)
+        )
+
+        # Tempo médio de registro (horas)
+        q_tempo_registro = (
+            select(
+                func.avg(func.extract('epoch', (Defeito.created_at - ExecucaoTeste.updated_at)) / 3600.0)
+            )
+            .select_from(Defeito)
+            .join(Defeito.execucao)
+            .where(ExecucaoTeste.responsavel_id == user_id)
+            .where(Defeito.created_at >= cutoff_date)
+            .where(ExecucaoTeste.updated_at.isnot(None))
+        )
+
+        exec_30d = (await self.db.execute(q_exec_30d)).scalar() or 0
+        impacto = (await self.db.execute(q_impacto)).scalar() or 0
+        sev_media = (await self.db.execute(q_sev_media)).scalar()
+        tempo_med = (await self.db.execute(q_tempo_registro)).scalar()
+
+        return {
+            "execucoes_30d": int(exec_30d),
+            "impacto_relevante": int(impacto),
+            "severidade_media": round(float(sev_media or 0.0), 2),
+            "tempo_medio_registro_horas": round(max(0.0, float(tempo_med or 0.0)), 2),
+        }
 
     async def get_team_stats_aggregates(self) -> Dict[str, Any]:
         # 1. total de execucoes 
@@ -299,7 +463,13 @@ class DashboardRepository:
         }
 
     async def get_user_stats_aggregates(self, user_id: int) -> Dict[str, Any]:
-        q_bugs = select(func.count(Defeito.id)).where(Defeito.criado_por_id == user_id)
+    
+        q_bugs = (
+            select(func.count(Defeito.id))
+            .select_from(Defeito)
+            .join(Defeito.execucao)
+            .where(ExecucaoTeste.responsavel_id == user_id)
+        )
 
         q_execs = select(func.count(ExecucaoTeste.id)).where(
             ExecucaoTeste.responsavel_id == user_id,
